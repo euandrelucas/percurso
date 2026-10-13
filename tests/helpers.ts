@@ -1,11 +1,11 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+// Banco de TESTE isolado (percurso_test). Crie com:  createdb percurso_test && DATABASE_URL=... npx prisma migrate deploy
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? "postgresql://percurso:percurso_dev@localhost:5432/percurso_test?schema=public";
+process.env.MOCK_AI = "1";
+process.env.AUTH_SECRET = "test-secret-0123456789abcdef";
+process.env.ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-/** Banco temporário isolado para cada arquivo de teste. */
-export function useTempDb() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "percurso-test-"));
-  process.env.DATABASE_PATH = path.join(dir, "test.db");
-  process.env.MOCK_AI = "1";
-  delete process.env.ADMIN_EMAIL;
+export async function resetDb() {
+  const { prisma } = await import("../src/lib/prisma");
+  await prisma.$executeRawUnsafe("TRUNCATE TABLE users, invites, audit_log RESTART IDENTITY CASCADE");
+  return prisma;
 }

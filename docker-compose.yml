@@ -1,0 +1,106 @@
+# Percurso — suba tudo com:  docker compose up -d
+# Primeira vez: cp .env.example .env  e preencha (ou rode ./scripts/setup.sh, que gera os segredos para você).
+
+name: percurso
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  db:
+    <<: *hardening
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: percurso
+      POSTGRES_DB: percurso
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (rode ./scripts/setup.sh)}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --data-checksums"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U percurso -d percurso"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Sem "ports": o banco NUNCA fica exposto fora da rede interna do compose.
+
+  migrate:
+    build: { context: ., target: migrate }
+    image: percurso-migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://percurso:${POSTGRES_PASSWORD}@db:5432/percurso?schema=public
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  app:
+    <<: *hardening
+    build: { context: ., target: runner }
+    image: percurso-app
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://percurso:${POSTGRES_PASSWORD}@db:5432/percurso?schema=public
+      APP_URL: ${APP_URL:-http://localhost}
+      TRUST_PROXY: "1"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4.1}
+      OPENAI_FAST_MODEL: ${OPENAI_FAST_MODEL:-gpt-4.1-mini}
+      OPENAI_REALTIME_MODEL: ${OPENAI_REALTIME_MODEL:-gpt-realtime-mini}
+      MOCK_AI: ${MOCK_AI:-0}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_REQUIRE_2FA: ${ADMIN_REQUIRE_2FA:-1}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SESSION_MAX_MINUTES: ${SESSION_MAX_MINUTES:-60}
+      CALLS_PER_DAY: ${CALLS_PER_DAY:-1}
+      CHAT_MESSAGES_PER_DAY: ${CHAT_MESSAGES_PER_DAY:-80}
+    volumes:
+      - appdata:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    networks: [internal]
+    expose: ["3000"]
+
+  caddy:
+    <<: *hardening
+    image: caddy:2-alpine
+    depends_on:
+      app: { condition: service_healthy }
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [internal, public]
+    cap_add: [NET_BIND_SERVICE]
+
+networks:
+  internal:
+    internal: false
+  public: {}
+
+volumes:
+  pgdata:
+  appdata:
+  caddy_data:
+  caddy_config:

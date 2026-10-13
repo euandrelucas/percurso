@@ -1,10 +1,11 @@
 import { PROMPT_VERSION, config } from "./config";
-import { all, audit, get, run } from "./db";
+import { audit, prisma } from "./prisma";
 import { chatJSON } from "./openai";
 import { memoryBlock } from "./prompts/memory";
 import { EMPTY_MEMORY, type CaseMemory, type ReportData, type Session, type SessionAnalysis } from "./types";
-import { activeGoals, allExercises, endedSessions, getAgent, getMemory, getSession, moodHistory, parseAnalysis, raiseAlert, saveMemory, screenings, sessionMessages } from "./store";
-import { fmtDate, fmtDuration } from "./time";
+import { getMemory, getSession, raiseAlert, saveAnalysis, saveMemory, saveReport, sessionMessages } from "./store";
+import { fmtDuration } from "./time";
+import { buildDossier } from "./report-data";
 
 // --- JSON Schemas estritos ---------------------------------------------------------------------------------------
 const S = { type: "string" } as const;
@@ -69,11 +70,11 @@ type Msg = { role: string; content: string };
 const transcriptText = (msgs: Msg[]) => msgs.map((m) => `${m.role === "assistant" ? "IA" : "PACIENTE"}: ${m.content}`).join("\n");
 
 export async function analyzeSession(sessionId: number): Promise<SessionAnalysis | null> {
-  const s = getSession(sessionId);
+  const s = await getSession(sessionId);
   if (!s) return null;
-  const msgs = sessionMessages(sessionId).filter((m) => m.role !== "system");
+  const msgs = (await sessionMessages(sessionId)).filter((m) => m.role !== "system");
   const userMsgs = msgs.filter((m) => m.role === "user");
-  const prev = getMemory(s.user_id);
+  const prev = await getMemory(s.user_id);
 
   let a: SessionAnalysis;
   if (userMsgs.length === 0) {
@@ -82,7 +83,7 @@ export async function analyzeSession(sessionId: number): Promise<SessionAnalysis
     a = mockAnalysis(msgs, prev);
   } else {
     try {
-      const ctx = memoryBlock(s.user_id);
+      const ctx = await memoryBlock(s.user_id);
       a = await chatJSON<SessionAnalysis>({
         system: ANALYSIS_SYSTEM,
         user: `CONTEXTO DO CASO ANTES DESTA SESSÃO:\n${ctx}\n\nSESSÃO ${s.number} (${s.kind}) — duração ${fmtDuration(s.duration_sec)}, encerrada por: ${s.end_reason ?? "—"}\n\nTRANSCRIÇÃO:\n${transcriptText(msgs).slice(0, 60000)}`,
@@ -91,35 +92,33 @@ export async function analyzeSession(sessionId: number): Promise<SessionAnalysis
         temperature: 0.2,
       });
     } catch (e) {
-      audit("system", "analysis.failed", s.user_id, { sessionId, error: String(e).slice(0, 300) });
+      await audit("system", "analysis.failed", s.user_id, { sessionId, error: String(e).slice(0, 300) });
       a = emptyAnalysis(prev, "Não foi possível gerar a análise automática desta sessão. A transcrição está disponível para revisão manual.");
     }
   }
-  applyAnalysis(s, a);
+  await applyAnalysis(s, a);
   return a;
 }
 
-function applyAnalysis(s: Session, a: SessionAnalysis) {
-  run("UPDATE sessions SET analysis = ?, mood_start = ?, mood_end = ? WHERE id = ?", JSON.stringify(a), a.humor_estimado_inicio, a.humor_estimado_fim, s.id);
-  saveMemory(s.user_id, { ...EMPTY_MEMORY, ...a.memoria_atualizada }, s.id);
+async function applyAnalysis(s: Session, a: SessionAnalysis) {
+  await saveAnalysis(s.id, a);
+  await saveMemory(s.user_id, { ...EMPTY_MEMORY, ...a.memoria_atualizada }, s.id);
 
-  if (a.humor_estimado_fim != null) run("INSERT INTO moods (user_id, score, note) VALUES (?, ?, ?)", s.user_id, a.humor_estimado_fim, `Ao final da sessão ${s.number}`);
+  if (a.humor_estimado_fim != null) await prisma.mood.create({ data: { user_id: s.user_id, score: a.humor_estimado_fim, note: `Ao final da sessão ${s.number}` } });
 
   for (const g of a.metas) {
-    const existing = get<{ id: number }>("SELECT id FROM goals WHERE user_id = ? AND lower(title) = lower(?)", s.user_id, g.titulo);
+    const existing = await prisma.goal.findFirst({ where: { user_id: s.user_id, title: { equals: g.titulo, mode: "insensitive" } } });
     const status = g.status === "atingida" ? "atingida" : g.status === "abandonada" ? "abandonada" : "ativa";
-    if (existing) run("UPDATE goals SET status = ?, updated_at = datetime('now') WHERE id = ?", status, existing.id);
-    else run("INSERT INTO goals (user_id, title, status, session_id) VALUES (?, ?, ?, ?)", s.user_id, g.titulo, status, s.id);
+    if (existing) await prisma.goal.update({ where: { id: existing.id }, data: { status } });
+    else await prisma.goal.create({ data: { user_id: s.user_id, title: g.titulo.slice(0, 300), status, session_id: s.id } });
   }
   if (a.exercicio && a.exercicio.titulo) {
     // exercícios antigos ainda pendentes ficam como "não realizado" para não acumular.
-    run("UPDATE exercises SET status = 'nao_realizado' WHERE user_id = ? AND status = 'pendente'", s.user_id);
-    run("INSERT INTO exercises (user_id, title, description, session_id) VALUES (?, ?, ?, ?)", s.user_id, a.exercicio.titulo, a.exercicio.descricao, s.id);
+    await prisma.exercise.updateMany({ where: { user_id: s.user_id, status: "pendente" }, data: { status: "nao_realizado" } });
+    await prisma.exercise.create({ data: { user_id: s.user_id, title: a.exercicio.titulo.slice(0, 200), description: a.exercicio.descricao.slice(0, 1000), session_id: s.id } });
   }
-  if (a.risco.nivel >= 1) {
-    raiseAlert(s.user_id, a.risco.nivel, `sessao:${s.id}`, a.risco.evidencias.join(" | ") || "Risco identificado na análise da sessão");
-  }
-  audit("system", "analysis.saved", s.user_id, { sessionId: s.id, risk: a.risco.nivel, promptVersion: PROMPT_VERSION });
+  if (a.risco.nivel >= 1) await raiseAlert(s.user_id, a.risco.nivel, `sessao:${s.id}`, a.risco.evidencias.join(" | ") || "Risco identificado na análise da sessão");
+  await audit("system", "analysis.saved", s.user_id, { sessionId: s.id, risk: a.risco.nivel, promptVersion: PROMPT_VERSION });
 }
 
 function emptyAnalysis(prev: CaseMemory, resumo: string): SessionAnalysis {
@@ -157,7 +156,7 @@ function mockAnalysis(msgs: Msg[], prev: CaseMemory): SessionAnalysis {
   };
 }
 
-// --- Relatório do paciente -----------------------------------------------------------------------------------------
+// --- Relatório do paciente (histórico completo, para anexar ao estudo) ---------------------------------------------------
 const REPORT_SCHEMA = {
   name: "relatorio_paciente",
   strict: true,
@@ -178,57 +177,46 @@ const REPORT_SCHEMA = {
   }),
 };
 
-const REPORT_SYSTEM = `Você redige relatórios de acompanhamento para o psicólogo/pesquisador responsável por um estudo fechado (beta) de apoio emocional conduzido por uma IA, em português do Brasil. O leitor é um profissional de saúde mental.
+const REPORT_SYSTEM = `Você redige a parte narrativa do relatório de acompanhamento de um participante de um estudo fechado (beta) de apoio emocional conduzido por uma IA, em português do Brasil. O relatório será ANEXADO AO ESTUDO e lido por psicólogos/pesquisadores. Os registros brutos (transcrições, escalas, datas, alertas) irão em anexos no mesmo documento; sua parte é a síntese.
 
 REGRAS
 - Use APENAS os dados fornecidos. Não invente fatos, escores, datas ou falas. Se faltar informação, escreva "Sem dados suficientes".
-- SEPARE FATO DE HIPÓTESE: "fatos_observados" só traz o que o paciente relatou/fez (e dados objetivos como escores e notas de humor); interpretações vão em "hipoteses" com confiança baixa/media/alta. Nunca afirme diagnóstico: use "hipótese a ser avaliada por profissional".
-- Tom neutro, técnico e respeitoso, sem julgamentos. Frases curtas. Cada seção em 2 a 6 frases (listas: até 8 itens curtos).
+- SEPARE FATO DE HIPÓTESE: "fatos_observados" só traz o que o paciente relatou/fez (e dados objetivos como escores e notas de humor), ordenados cronologicamente quando possível; interpretações vão em "hipoteses" com confiança baixa/media/alta. Nunca afirme diagnóstico: use "hipótese a ser avaliada por profissional".
+- Tom neutro, técnico e respeitoso, sem julgamentos. Frases curtas. Cada seção em 3 a 8 frases (listas: até 12 itens curtos).
+- "evolucao": percorra TODAS as sessões na ordem, descrevendo a trajetória (humor, temas, adesão a exercícios, mudanças de padrão), apontando estagnação ou piora quando houver.
 - "riscos_e_alertas": descreva TODOS os sinais de risco registrados (com data e fonte), o que a IA fez e o que ainda requer decisão humana. Se não houver, diga isso explicitamente.
-- "evolucao": descreva a trajetória entre sessões (humor, temas, adesão a exercícios), apontando estagnação ou piora quando houver.
-- "recomendacoes_ao_profissional": sugestões objetivas de atenção (ex.: reavaliar risco, contato ativo, ajustar meta). São sugestões — a decisão é do profissional.
-- "limitacoes": inclua que o conteúdo foi gerado automaticamente a partir de conversas com uma IA, não constitui avaliação clínica nem diagnóstico, e requer revisão por profissional habilitado.`;
+- "recomendacoes_ao_profissional": sugestões objetivas de atenção. São sugestões — a decisão é do profissional.
+- "limitacoes": inclua que o conteúdo foi gerado automaticamente a partir de conversas com uma IA, não constitui avaliação clínica nem diagnóstico, não mede eficácia e requer revisão por profissional habilitado.`;
 
-export async function generateReport(uid: number): Promise<{ id: number; data: ReportData }> {
-  const user = get<{ name: string; email: string; created_at: string }>("SELECT name, email, created_at FROM users WHERE id = ?", uid)!;
-  const agent = getAgent(uid);
-  const mem = getMemory(uid);
-  const sessions = endedSessions(uid, 50).reverse();
-  const scr = screenings(uid);
-  const moods = moodHistory(uid, 60);
-  const goals = activeGoals(uid);
-  const exs = allExercises(uid);
-  const alerts = all<{ level: number; source: string; excerpt: string; status: string; created_at: string }>("SELECT * FROM alerts WHERE user_id = ? ORDER BY id ASC", uid);
-
+export async function generateReport(uid: number, actor = "admin"): Promise<{ id: number; data: ReportData }> {
+  const d = await buildDossier(uid);
   const facts = {
-    paciente: { nome_preferido: agent?.preferred_name ?? user.name, cadastro: fmtDate(user.created_at), expectativa_declarada: agent?.goal_hint ?? "", assuntos_declarados: agent?.topics ?? "", sobre_si: agent?.about_me ?? "" },
-    escalas: scr.map((s) => ({ escala: s.kind.toUpperCase(), escore: s.score, acima_do_ponto_de_atencao: !!s.flagged, data: fmtDate(s.created_at) })),
-    contexto_do_caso: mem,
-    sessoes: sessions.map((s) => {
-      const a = parseAnalysis(s);
-      return { numero: s.number, tipo: s.kind, data: fmtDate(s.started_at), duracao: fmtDuration(s.duration_sec), encerrada_por: s.end_reason, analise: a };
-    }),
-    humor_ao_longo_do_tempo: moods.map((m) => ({ nota: m.score, data: fmtDate(m.created_at), obs: m.note })),
-    metas: goals.map((g) => ({ meta: g.title, status: g.status })),
-    exercicios: exs.map((e) => ({ titulo: e.title, status: e.status, devolutiva: e.feedback })),
-    alertas: alerts.map((a) => ({ nivel: a.level, origem: a.source, trecho: a.excerpt, status: a.status, data: fmtDate(a.created_at) })),
+    paciente: { nome_preferido: d.agent?.preferredName ?? d.patient.name, cadastro: d.patient.registeredAt, consentimento: d.patient.consentAt, expectativa_declarada: d.agent?.goalHint ?? "", assuntos_declarados: d.agent?.topics ?? "", sobre_si: d.agent?.aboutMe ?? "" },
+    escalas: d.screenings,
+    contexto_do_caso: d.memory,
+    sessoes: d.sessions.map((s) => ({ numero: s.number, tipo: s.kind, data: s.started, duracao: s.duration, encerrada_por: s.endReason, analise: s.analysis })),
+    humor_ao_longo_do_tempo: d.moods.map((m) => ({ nota: m.score, data: m.date, obs: m.note })),
+    metas: d.goals,
+    exercicios: d.exercises,
+    alertas: d.alerts,
+    mensagens_de_emergencia_total: d.chat.filter((m) => m.role === "user").length,
   };
 
   let data: ReportData;
   if (config.mock()) {
-    data = mockReport(user.name, facts.sessoes.length, mem, alerts.length);
+    data = mockReport(d.patient.name, d.totals.sessions, d.memory, d.alerts.length);
   } else {
     const r = await chatJSON<Omit<ReportData, "gerado_em">>({
       system: REPORT_SYSTEM,
-      user: `DADOS DO ACOMPANHAMENTO (JSON):\n${JSON.stringify(facts).slice(0, 90000)}`,
+      user: `DADOS DO ACOMPANHAMENTO (JSON):\n${JSON.stringify(facts).slice(0, 110000)}`,
       schema: REPORT_SCHEMA,
-      maxTokens: 3500,
+      maxTokens: 4000,
       temperature: 0.2,
     });
     data = { ...r, gerado_em: new Date().toISOString() };
   }
-  const id = run("INSERT INTO reports (user_id, data, model, prompt_version) VALUES (?, ?, ?, ?)", uid, JSON.stringify(data), config.mock() ? "mock" : config.chatModel(), PROMPT_VERSION).id;
-  audit("admin", "report.generated", uid, { reportId: id });
+  const id = await saveReport(uid, data, config.mock() ? "mock" : config.chatModel(), PROMPT_VERSION);
+  await audit(actor, "report.generated", uid, { reportId: id });
   return { id, data };
 }
 
@@ -236,7 +224,7 @@ function mockReport(name: string, nSessions: number, mem: CaseMemory, nAlerts: n
   return {
     titulo: `Relatório de acompanhamento — ${name}`,
     gerado_em: new Date().toISOString(),
-    identificacao: `${name}. ${nSessions} sessão(ões) concluída(s). [Modo demonstração]`,
+    identificacao: `${name}. ${nSessions} sessão(ões) concluída(s). [Modo demonstração: narrativa simulada, sem IA]`,
     motivo_da_busca: mem.queixa_principal || "Sem dados suficientes.",
     triagem: "Sem dados suficientes (modo demonstração).",
     evolucao: "Sem dados suficientes (modo demonstração).",
@@ -246,9 +234,7 @@ function mockReport(name: string, nSessions: number, mem: CaseMemory, nAlerts: n
     metas_e_exercicios: "Sem dados suficientes.",
     riscos_e_alertas: nAlerts ? `${nAlerts} alerta(s) registrado(s). Revise no painel.` : "Nenhum sinal de risco registrado.",
     adesao_e_engajamento: "Sem dados suficientes.",
-    recomendacoes_ao_profissional: ["Configurar OPENAI_API_KEY para gerar relatórios reais."],
-    limitacoes: "Conteúdo gerado automaticamente; não constitui avaliação clínica nem diagnóstico e requer revisão por profissional habilitado.",
+    recomendacoes_ao_profissional: ["Configurar OPENAI_API_KEY para gerar a narrativa real."],
+    limitacoes: "Conteúdo gerado automaticamente; não constitui avaliação clínica nem diagnóstico, não mede eficácia e requer revisão por profissional habilitado.",
   };
 }
-
-export const latestReport = (uid: number) => get<{ id: number; data: string; created_at: string }>("SELECT id, data, created_at FROM reports WHERE user_id = ? ORDER BY id DESC LIMIT 1", uid);

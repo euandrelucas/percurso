@@ -1,0 +1,263 @@
+// Percurso — schema PostgreSQL.
+// Convenção: os campos mantêm snake_case para espelhar o contrato já usado pela interface.
+// Colunas marcadas [ENC] guardam texto cifrado (AES-256-GCM) pela camada src/lib/crypto.ts.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  name           String
+  password_hash  String
+  role           String    @default("patient") // patient | admin
+  status         String    @default("active") // active | suspended
+  onboarded      Boolean   @default(false)
+  consent_at     DateTime?
+  calls_per_day  Int?
+  // 2FA (TOTP) — usado pelo admin
+  totp_secret    String? // [ENC]
+  totp_enabled   Boolean   @default(false)
+  totp_last_step Int? // último passo TOTP aceito (impede reutilizar o mesmo código)
+  // proteção contra força bruta
+  failed_logins  Int       @default(0)
+  locked_until   DateTime?
+  last_login_at  DateTime?
+  created_at     DateTime  @default(now())
+
+  invite        Invite?
+  auth_sessions AuthSession[]
+  agent         AgentSettings?
+  screenings    Screening[]
+  sessions      TherapySession[]
+  messages      Message[]
+  memory        CaseMemory?
+  memory_versions CaseMemoryVersion[]
+  goals         Goal[]
+  exercises     Exercise[]
+  moods         Mood[]
+  alerts        Alert[]
+  reports       Report[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id          String   @id // sha256 do token (o token em si só existe no cookie)
+  user_id     Int
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  pending_2fa Boolean  @default(false) // senha ok, falta o código TOTP
+  ip          String?
+  user_agent  String?
+  created_at  DateTime @default(now())
+  last_seen_at DateTime @default(now())
+  expires_at  DateTime
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("auth_sessions")
+}
+
+model Invite {
+  id         Int       @id @default(autoincrement())
+  code       String    @unique
+  label      String?
+  used_by_id Int?      @unique
+  used_by    User?     @relation(fields: [used_by_id], references: [id], onDelete: SetNull)
+  used_at    DateTime?
+  revoked    Boolean   @default(false)
+  expires_at DateTime?
+  created_at DateTime  @default(now())
+
+  @@map("invites")
+}
+
+model AgentSettings {
+  user_id        Int      @id
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  preferred_name String
+  agent_name     String
+  voice          String   @default("marin")
+  tone           String   @default("acolhedor")
+  style          String   @default("equilibrado")
+  formality      String   @default("informal")
+  humor          String   @default("leve")
+  pace           String   @default("normal")
+  avatar         Json     @default("{}")
+  about_me       String   @default("")
+  topics         String   @default("")
+  boundaries     String   @default("")
+  goal_hint      String   @default("")
+  updated_at     DateTime @updatedAt
+
+  @@map("agent_settings")
+}
+
+model Screening {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  kind       String // phq2 | gad2 | seguranca
+  answers    Json
+  score      Int
+  flagged    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@map("screenings")
+}
+
+model TherapySession {
+  id             Int       @id @default(autoincrement())
+  user_id        Int
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  number         Int
+  kind           String // triagem | acompanhamento
+  status         String    @default("active") // active | ended
+  started_at     DateTime  @default(now())
+  ended_at       DateTime?
+  duration_sec   Int?
+  end_reason     String?
+  max_minutes    Int
+  prompt_version String?
+  mood_start     Int?
+  mood_end       Int?
+  analysis       String? // [ENC] JSON da análise pós-sessão
+  messages       Message[]
+
+  @@index([user_id, started_at])
+  @@map("sessions")
+}
+
+model Message {
+  id         Int             @id @default(autoincrement())
+  user_id    Int
+  user       User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  session_id Int?
+  session    TherapySession? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+  channel    String // voice | chat
+  role       String // user | assistant | system
+  content    String // [ENC]
+  created_at DateTime        @default(now())
+
+  @@index([user_id, id])
+  @@index([session_id, id])
+  @@map("messages")
+}
+
+model CaseMemory {
+  user_id    Int      @id
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  data       String // [ENC]
+  version    Int      @default(1)
+  updated_at DateTime @default(now())
+
+  @@map("case_memory")
+}
+
+model CaseMemoryVersion {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  version    Int
+  data       String // [ENC]
+  session_id Int?
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@map("case_memory_versions")
+}
+
+model Goal {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  title      String
+  status     String   @default("ativa") // ativa | atingida | abandonada
+  session_id Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@index([user_id])
+  @@map("goals")
+}
+
+model Exercise {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  status       String    @default("pendente") // pendente | feito | nao_realizado
+  feedback     String?
+  session_id   Int?
+  created_at   DateTime  @default(now())
+  completed_at DateTime?
+
+  @@index([user_id])
+  @@map("exercises")
+}
+
+model Mood {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  score      Int
+  note       String?
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@map("moods")
+}
+
+model Alert {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  level      Int
+  source     String
+  excerpt    String // [ENC]
+  status     String    @default("aberto") // aberto | em_acompanhamento | resolvido
+  note       String?
+  created_at DateTime  @default(now())
+  handled_at DateTime?
+
+  @@index([user_id])
+  @@index([status])
+  @@map("alerts")
+}
+
+model Report {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  data           String // [ENC] JSON do relatório
+  model          String?
+  prompt_version String?
+  created_at     DateTime @default(now())
+
+  @@index([user_id])
+  @@map("reports")
+}
+
+// Trilha de auditoria append-only: quem fez o quê (inclui acessos do admin a dados de pacientes).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  user_id    Int? // paciente afetado
+  actor      String // system | patient | admin:<id>
+  action     String
+  detail     Json?
+  ip         String?
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("audit_log")
+}

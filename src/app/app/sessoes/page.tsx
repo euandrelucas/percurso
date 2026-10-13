@@ -9,7 +9,7 @@ export const metadata = { title: "Sessões" };
 
 export default async function Sessions() {
   const u = await requirePatient();
-  const list = allSessions(u.id);
+  const list = await allSessions(u.id);
   return (
     <>
       <PageTitle title="Suas sessões" sub="Um registro do seu percurso: o que foi conversado e o que ficou combinado." />

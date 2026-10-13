@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   const u = await requirePatient();
-  const s = getSession(Number((await params).id));
+  const sid = Number((await params).id);
+  const s = Number.isInteger(sid) ? await getSession(sid) : null;
   if (!s || s.user_id !== u.id) notFound();
   const a = parseAnalysis(s);
-  const msgs = sessionMessages(s.id);
+  const msgs = await sessionMessages(s.id);
   return (
     <div className="space-y-6 max-w-3xl">
       <Link href="/app/sessoes" className="text-sm text-muted">← Voltar</Link>

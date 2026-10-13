@@ -1,7 +1,7 @@
-import { clearSessionCookie } from "@/lib/auth";
+import { destroySession } from "@/lib/auth";
 import { json } from "@/lib/api";
 
 export async function POST() {
-  await clearSessionCookie();
+  await destroySession();
   return json({ ok: true });
 }

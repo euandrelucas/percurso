@@ -11,9 +11,12 @@ export function AdminNav({ openAlerts }: { openAlerts: number }) {
     { href: "/admin/alertas", label: "Alertas", badge: openAlerts },
     { href: "/admin/pacientes", label: "Pacientes" },
     { href: "/admin/convites", label: "Convites" },
+    { href: "/admin/conhecimento", label: "Conhecimento" },
+    { href: "/admin/auditoria", label: "Auditoria" },
+    { href: "/admin/seguranca", label: "Segurança" },
   ];
   return (
-    <aside className="md:w-56 shrink-0 md:min-h-dvh bg-ink text-white p-4 md:p-5 flex md:flex-col gap-3 md:gap-8 items-center md:items-stretch justify-between">
+    <aside className="md:w-56 shrink-0 md:min-h-dvh bg-ink text-white p-4 md:p-5 flex md:flex-col gap-3 md:gap-8 items-center md:items-stretch justify-between md:sticky md:top-0 md:h-dvh">
       <Logo light href="/admin" />
       <nav className="flex md:flex-col gap-1 flex-1 md:flex-none overflow-x-auto" aria-label="Admin">
         {items.map((i) => {
@@ -26,7 +29,7 @@ export function AdminNav({ openAlerts }: { openAlerts: number }) {
           );
         })}
       </nav>
-      <button className="text-sm text-white/60 hover:text-white md:mt-auto text-left" onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/"); router.refresh(); }}>Sair</button>
+      <button className="text-sm text-white/60 hover:text-white md:mt-auto text-left" onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/entrar"); router.refresh(); }}>Sair</button>
     </aside>
   );
 }

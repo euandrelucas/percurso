@@ -1,19 +1,16 @@
 /** @type {import('next').NextConfig} */
 const config = {
-  serverExternalPackages: ["pdfkit"],
+  output: "standalone",
+  // pdfkit carrega as fontes (AFM) em tempo de execução: o tracer do standalone não as enxerga sozinho.
+  outputFileTracingIncludes: { "/api/admin/users/[id]/pdf": ["./node_modules/pdfkit/js/**/*"] },
+  serverExternalPackages: ["pdfkit", "@prisma/client", "prisma"],
   poweredByHeader: false,
+  reactStrictMode: true,
   async headers() {
     return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "same-origin" },
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
-          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
-        ],
-      },
+      // Service worker: nunca em cache longo, para atualizações chegarem rápido.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Service-Worker-Allowed", value: "/" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] },
+      { source: "/manifest.webmanifest", headers: [{ key: "Content-Type", value: "application/manifest+json" }, { key: "Cache-Control", value: "public, max-age=3600" }] },
     ];
   },
 };

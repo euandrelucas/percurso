@@ -1,15 +1,17 @@
 import { apiUser } from "@/lib/auth";
-import { bad, json, readJson, str } from "@/lib/api";
-import { audit, run } from "@/lib/db";
+import { bad, json, parseBody } from "@/lib/api";
+import { audit, prisma } from "@/lib/prisma";
+import { alertActionSchema } from "@/lib/schemas";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const admin = await apiUser("admin");
   if (!admin) return bad("Não autorizado", 403);
   const id = Number((await ctx.params).id);
-  const b = await readJson(req);
-  const status = b?.status === "resolvido" ? "resolvido" : b?.status === "em_acompanhamento" ? "em_acompanhamento" : null;
-  if (!status) return bad("Status inválido");
-  run("UPDATE alerts SET status = ?, note = ?, handled_at = datetime('now') WHERE id = ?", status, str(b?.note, 500) || null, id);
-  audit("admin", "alert.handled", null, { id, status });
+  if (!Number.isInteger(id)) return bad("Alerta não encontrado", 404);
+  const [b, err] = await parseBody(req, alertActionSchema, "Status inválido");
+  if (err) return err;
+  const r = await prisma.alert.updateMany({ where: { id }, data: { status: b.status, note: b.note || null, handled_at: new Date() } });
+  if (!r.count) return bad("Alerta não encontrado", 404);
+  await audit(`admin:${admin.id}`, "alert.handled", null, { id, status: b.status });
   return json({ ok: true });
 }

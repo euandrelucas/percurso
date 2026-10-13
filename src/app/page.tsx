@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui";
-import { Avatar } from "@/components/Avatar";
-import { AVATAR_DEFAULT } from "@/lib/prompts/options";
+import { HeroAvatar } from "@/components/HeroAvatar";
 
 const steps = [
   { n: "1", t: "Entre com seu convite", d: "O Percurso está em beta fechado. Quem recebeu um código cria a conta em um minuto." },
@@ -50,7 +49,7 @@ export default function Landing() {
           <div className="absolute -inset-6 bg-teal-soft rounded-[3rem] -rotate-3" aria-hidden />
           <div className="relative card !p-3 !rounded-[2rem] shadow-xl shadow-teal/10">
             <div className="rounded-[1.5rem] overflow-hidden aspect-[4/5] bg-ink relative">
-              <Avatar avatar={{ ...AVATAR_DEFAULT, hair: "hair-long", hairColor: "#5a3a22", accent: "#0d9488" }} level={0.12} speaking className="w-full h-full" />
+              <HeroAvatar />
               <div className="absolute left-3 bottom-3 right-3 rounded-2xl bg-black/45 backdrop-blur px-4 py-3 text-white text-sm">
                 “Que bom te ver de novo. Da última vez você comentou sobre aquela conversa com seu chefe… como foi?”
               </div>

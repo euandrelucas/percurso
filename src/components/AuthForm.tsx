@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "./ui";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, defaultCode = "" }: { mode: "login" | "register"; defaultCode?: string }) {
   const router = useRouter();
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +38,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <>
                 <div>
                   <label className="label" htmlFor="code">Código de convite</label>
-                  <input id="code" name="code" className="input uppercase tracking-widest" placeholder="PERC-XXXX-XXXX" required autoComplete="off" />
+                  <input id="code" name="code" defaultValue={defaultCode} className="input uppercase tracking-widest" placeholder="PERC-XXXX-XXXX" required autoComplete="off" maxLength={40} />
                 </div>
                 <div>
                   <label className="label" htmlFor="name">Seu nome</label>
@@ -52,8 +52,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </div>
             <div>
               <label className="label" htmlFor="password">Senha</label>
-              <input id="password" name="password" type="password" className="input" required minLength={reg ? 8 : 1} autoComplete={reg ? "new-password" : "current-password"} />
-              {reg && <p className="hint">Mínimo de 8 caracteres.</p>}
+              <input id="password" name="password" type="password" className="input" required minLength={reg ? 10 : 1} maxLength={200} autoComplete={reg ? "new-password" : "current-password"} />
+              {reg && <p className="hint">Mínimo de 10 caracteres, não só números.</p>}
             </div>
             {err && <p role="alert" className="text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
             <button className="btn btn-primary w-full" disabled={busy}>{busy ? "Aguarde…" : reg ? "Criar conta" : "Entrar"}</button>

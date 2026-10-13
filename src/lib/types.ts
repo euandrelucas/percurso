@@ -8,7 +8,7 @@ export type Agent = {
   formality: string;
   humor: string;
   pace: string;
-  avatar: string;
+  avatar: unknown;
   about_me: string;
   topics: string;
   boundaries: string;
@@ -78,29 +78,4 @@ export type ReportData = {
   limitacoes: string;
 };
 
-export type Session = {
-  id: number;
-  user_id: number;
-  number: number;
-  kind: "triagem" | "acompanhamento";
-  status: "active" | "ended";
-  started_at: string;
-  ended_at: string | null;
-  duration_sec: number | null;
-  end_reason: string | null;
-  max_minutes: number;
-  prompt_version: string | null;
-  mood_start: number | null;
-  mood_end: number | null;
-  analysis: string | null;
-};
-
-export type Message = {
-  id: number;
-  user_id: number;
-  session_id: number | null;
-  channel: "voice" | "chat";
-  role: "user" | "assistant" | "system";
-  content: string;
-  created_at: string;
-};
+export type { TherapySession as Session, Message } from "@prisma/client";

@@ -11,20 +11,20 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const u = await requirePatient();
-  const agent = getAgent(u.id)!;
-  const { available, resumable } = callAvailability(u);
-  const first = !hasCompletedSession(u.id);
-  const last = endedSessions(u.id, 1)[0];
+  const [agent, avail, completed, lastList, allGoals, allEx, moods] = await Promise.all([getAgent(u.id), callAvailability(u), hasCompletedSession(u.id), endedSessions(u.id, 1), activeGoals(u.id), allExercises(u.id), moodHistory(u.id, 14)]);
+  if (!agent) return null;
+  const { available, resumable } = avail;
+  const first = !completed;
+  const last = lastList[0];
   const lastA = parseAnalysis(last);
-  const goals = activeGoals(u.id).filter((g) => g.status === "ativa");
-  const exs = allExercises(u.id).filter((e) => e.status !== "nao_realizado").slice(0, 4);
-  const moods = moodHistory(u.id, 14);
+  const goals = allGoals.filter((g) => g.status === "ativa");
+  const exs = allEx.filter((e) => e.status !== "nao_realizado").slice(0, 4);
 
   return (
     <div className="space-y-6">
       <section className="card !p-0 overflow-hidden grid md:grid-cols-[260px_1fr]">
-        <div className="bg-ink aspect-square md:aspect-auto">
-          <Avatar avatar={parseAvatar(agent.avatar)} className="w-full h-full object-cover" />
+        <div className="bg-ink aspect-square md:aspect-auto min-h-[260px]">
+          <Avatar avatar={parseAvatar(agent.avatar)} className="w-full h-full" />
         </div>
         <div className="p-6 md:p-8 flex flex-col justify-center">
           <Badge tone={available ? "good" : "default"}>{available ? "Chamada de hoje disponível" : "Chamada de hoje já realizada"}</Badge>

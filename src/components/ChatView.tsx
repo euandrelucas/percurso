@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Avatar } from "./Avatar";
+import { AvatarThumb } from "./Avatar";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
 
 type Msg = { id: string; role: "user" | "assistant" | "crisis"; text: string; at: string };
@@ -11,8 +11,8 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
   const [msgs, setMsgs] = useState<Msg[]>(() =>
     initial.flatMap((m): Msg[] =>
       m.role === "assistant"
-        ? m.content.split(/\n{2,}/).map((t, i) => ({ id: `${m.id}-${i}`, role: "assistant" as const, text: t, at: hhmm(new Date(m.at.replace(" ", "T") + "Z")) }))
-        : [{ id: String(m.id), role: "user" as const, text: m.content, at: hhmm(new Date(m.at.replace(" ", "T") + "Z")) }],
+        ? m.content.split(/\n{2,}/).map((t, i) => ({ id: `${m.id}-${i}`, role: "assistant" as const, text: t, at: hhmm(new Date(m.at)) }))
+        : [{ id: String(m.id), role: "user" as const, text: m.content, at: hhmm(new Date(m.at)) }],
     ),
   );
   const [text, setText] = useState("");
@@ -59,7 +59,7 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
   return (
     <div className="card !p-0 overflow-hidden flex flex-col h-[calc(100dvh-14rem)] min-h-[460px] max-w-2xl mx-auto">
       <div className="flex items-center gap-3 px-4 py-3 bg-ink text-white">
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-teal"><Avatar avatar={avatar} className="w-full h-full" /></div>
+        <AvatarThumb avatar={avatar} size={96} className="w-10 h-10 rounded-full" />
         <div><div className="font-semibold leading-tight">{agentName}</div><div className="text-xs text-white/60">IA de apoio · responde na hora</div></div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 bg-[#efeae0]" aria-live="polite">

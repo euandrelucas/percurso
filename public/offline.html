@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1829">
+<title>Sem conexão · Percurso</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #f8f5ef; color: #0f1829; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 420px; text-align: center; }
+  h1 { font-family: Georgia, serif; font-size: 28px; margin: 0 0 8px; }
+  p { line-height: 1.55; color: #2a3447; }
+  .box { background: #fdebe6; border: 1px solid #f6d2c9; border-radius: 16px; padding: 14px 16px; margin: 20px 0; text-align: left; font-size: 15px; }
+  button { background: #0d9488; color: #fff; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 600; font-size: 15px; }
+  @media (prefers-color-scheme: dark) { body { background: #0f1829; color: #f3f4f6; } p { color: #cbd5e1; } .box { background: #3a1f1a; border-color: #5b2d24; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Você está sem conexão</h1>
+  <p>O Percurso precisa de internet para conversar. Assim que a conexão voltar, é só tentar de novo.</p>
+  <div class="box"><strong>Precisando de ajuda agora?</strong><br>Ligue <strong>188</strong> (CVV, apoio emocional 24h) ou <strong>192</strong> (SAMU). Funciona mesmo sem internet no celular.</div>
+  <button onclick="location.reload()">Tentar de novo</button>
+</main>
+</body>
+</html>
