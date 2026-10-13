@@ -139,9 +139,9 @@ export function IdentityFields({ form, set }: P) {
           <input id="agent_name" className="input" value={form.agent_name} maxLength={30} onChange={(e) => set({ agent_name: e.target.value })} placeholder="Ex.: Alma, Leo, Íris…" />
         </div>
         <div>
-          <span className="label">Voz</span>
+          <span className="label">Voz <span className="font-normal text-muted">· as primeiras combinam com o gênero escolhido, mas você pode usar qualquer uma</span></span>
           <div className="grid sm:grid-cols-2 gap-2">
-            {VOICES.map((v) => {
+            {[...VOICES].sort((a, b) => Number((VOICE_GENDER[b.id] ?? "f") === (form.agent_gender === "m" ? "m" : "f")) - Number((VOICE_GENDER[a.id] ?? "f") === (form.agent_gender === "m" ? "m" : "f"))).map((v) => {
               const st = preview.state?.id === v.id ? preview.state.status : null;
               return (
                 <div key={v.id} className="relative">
