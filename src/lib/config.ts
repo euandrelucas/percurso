@@ -9,9 +9,6 @@ export const config = {
   chatModel: () => process.env.OPENAI_CHAT_MODEL || "gpt-4.1",
   fastModel: () => process.env.OPENAI_FAST_MODEL || "gpt-4.1-mini",
   realtimeModel: () => process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini",
-  /** "Dois cérebros": um modelo de texto forte escreve cada fala e a voz em tempo real só a lê. Desligue com VOICE_BRAIN=0. */
-  voiceBrain: () => process.env.VOICE_BRAIN !== "0",
-  brainModel: () => process.env.OPENAI_BRAIN_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-4.1",
   sessionMaxMinutes: () => num(process.env.SESSION_MAX_MINUTES, 60),
   callsPerDay: () => num(process.env.CALLS_PER_DAY, 1),
   chatPerDay: () => num(process.env.CHAT_MESSAGES_PER_DAY, 80),
@@ -19,5 +16,5 @@ export const config = {
 };
 
 /** Versão dos prompts: gravada em cada sessão para auditoria. Suba ao editar qualquer prompt. */
-export const PROMPT_VERSION = "2026.10.14-2";
+export const PROMPT_VERSION = "2026.10.14-1";
 export const APP_NAME = "Percurso";
