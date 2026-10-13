@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import { ACCENTS, ACCESSORIES, AVATAR_DEFAULT, FACES, FACIAL_HAIR, FORMALITIES, GENDERS, HAIR_COLORS, HAIR_STYLES, HUMORS, PACES, PATIENT_GENDERS, SKIN_TONES, STYLES, TONES, VOICES, VOICE_GENDER, type Avatar as AvatarT, type GenderKey } from "@/lib/prompts/options";
+import { Icon } from "@/components/icons";
 
 /** Botão ▶ que toca uma amostra da voz (um áudio por vez; sem chave da OpenAI usa a voz do navegador). */
 function useVoicePreview() {
@@ -168,7 +169,7 @@ export function IdentityFields({ form, set }: P) {
                     onClick={() => void preview.toggle(v.id)}
                     aria-label={st === "playing" ? `Parar a prévia da voz ${v.label}` : `Ouvir a voz ${v.label}`}
                   >
-                    {st === "loading" ? <span className="animate-pulse">…</span> : st === "playing" ? "■" : "▶"}
+                    {st === "loading" ? <span className="animate-pulse">…</span> : <Icon name={st === "playing" ? "stop" : "play"} size={16} />}
                   </button>
                 </div>
               );

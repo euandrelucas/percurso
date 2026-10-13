@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./icons";
 
 const post = (url: string, body?: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
@@ -89,7 +90,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
       )}
       {enabled && (
         <div className="space-y-3">
-          <p className="text-sm text-teal-deep font-semibold">✓ Verificação em duas etapas ativa.</p>
+          <p className="text-sm text-teal-deep font-semibold"><Icon name="check" size={15} strokeWidth={3} className="mr-1 -mt-0.5" />Verificação em duas etapas ativa.</p>
           <details><summary className="cursor-pointer text-sm text-muted">Desativar…</summary>
             <div className="mt-3 flex flex-wrap gap-2"><input className="input !w-56" type="password" placeholder="Senha atual" value={pw} onChange={(e) => setPw(e.target.value)} /><input className="input !w-36 text-center" inputMode="numeric" maxLength={6} placeholder="Código" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} /><button className="btn btn-danger" onClick={disable}>Desativar</button></div>
           </details>

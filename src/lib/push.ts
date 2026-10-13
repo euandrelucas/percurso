@@ -51,8 +51,8 @@ const localHour = (d: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZon
 /** Texto neutro de propósito: a notificação aparece na tela bloqueada, então nunca cita saúde, temas ou nomes. */
 export function reminderText(hasPendingExercise: boolean): { title: string; body: string; url: string } {
   return hasPendingExercise
-    ? { title: "Percurso", body: "Seu exercício de hoje está esperando por você 💛", url: "/app" }
-    : { title: "Percurso", body: "Quando quiser, a conversa de hoje está liberada. Sem pressa 💛", url: "/app" };
+    ? { title: "Percurso", body: "Seu exercício de hoje está esperando por você.", url: "/app" }
+    : { title: "Percurso", body: "Quando quiser, a conversa de hoje está liberada. Sem pressa.", url: "/app" };
 }
 
 /** Roda a cada poucos minutos: às 19h envia no máximo UM lembrete por dia a quem ainda não conversou hoje. */

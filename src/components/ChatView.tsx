@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AvatarThumb } from "./Avatar";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
+import { Icon } from "./icons";
 
 type Msg = { id: string; role: "user" | "assistant" | "crisis"; text: string; at: string };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -71,7 +72,7 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
             <div key={m.id} className={`fade-up flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-[15px] shadow-sm ${m.role === "user" ? "bg-[#d6f1ec] rounded-br-md" : "bg-paper rounded-bl-md"}`}>
                 <span className="whitespace-pre-wrap break-words">{m.text}</span>
-                <span className="block text-right text-[10px] text-muted mt-0.5">{m.at}{m.role === "user" && <span className="text-teal ml-1">✓✓</span>}</span>
+                <span className="block text-right text-[10px] text-muted mt-0.5">{m.at}{m.role === "user" && <Icon name="check-check" size={13} strokeWidth={2.4} className="text-teal ml-1 -mt-0.5" />}</span>
               </div>
             </div>
           ),

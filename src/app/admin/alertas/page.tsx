@@ -36,7 +36,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
             <AlertActions id={a.id} status={a.status} />
           </div>
         ))}
-        {!rows.length && <div className="card text-muted">Nenhum alerta {filter ? "neste filtro" : "registrado"}. 🎉</div>}
+        {!rows.length && <div className="card text-muted">Nenhum alerta {filter ? "neste filtro" : "registrado"}.</div>}
       </div>
     </>
   );

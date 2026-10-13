@@ -59,7 +59,7 @@ export default async function Dashboard() {
         <Stat label="Voltaram (2+ sessões)" value={`${s.returnRate}%`} sub={`${s.returning} de ${s.withSession}`} tone="good" />
         <Stat label="Sessões realizadas" value={s.sessionsEnded} sub={`média de ${s.avgDurMin} min`} />
         <Stat label="Sessões até o fim" value={`${s.fullRate}%`} sub="≥ 85% do tempo" />
-        <Stat label="A conversa ajudou?" value={s.help.total ? `${Math.round((s.help.yes / s.help.total) * 100)}% sim` : "—"} sub={s.help.total ? `😊 ${s.help.yes} · 😐 ${s.help.mid} · 😕 ${s.help.no} (${s.help.total} respostas)` : "ainda sem respostas"} tone={s.help.no > s.help.yes ? "alert" : "good"} />
+        <Stat label="A conversa ajudou?" value={s.help.total ? `${Math.round((s.help.yes / s.help.total) * 100)}% sim` : "—"} sub={s.help.total ? `ajudou ${s.help.yes} · mais ou menos ${s.help.mid} · não ajudou ${s.help.no} (${s.help.total} respostas)` : "ainda sem respostas"} tone={s.help.no > s.help.yes ? "alert" : "good"} />
         <Stat label="Usaram o chat" value={`${s.chatRate}%`} sub={`${s.chatMsgs} mensagens`} />
         <Stat label="Alertas abertos" value={s.openAlerts} sub={`${s.alertsTotal} no total · ${s.highAlerts} nível 3`} tone={s.openAlerts ? "alert" : "default"} />
       </div>

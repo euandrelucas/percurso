@@ -25,3 +25,9 @@ test("balões: no máximo 3", () => {
   assert.equal(toBubbles("a\n\nb\n\nc\n\nd\n\ne").length, 3);
   assert.deepEqual(toBubbles("oi\n\ntudo bem?"), ["oi", "tudo bem?"]);
 });
+
+test("sanitizeReply remove emojis (o app usa ícones SVG)", async () => {
+  const { sanitizeReply } = await import("../src/lib/guardrails");
+  assert.equal(sanitizeReply("Estou aqui com você 💛\n\nQuer me contar? 😊"), "Estou aqui com você\n\nQuer me contar?");
+  assert.equal(sanitizeReply("Tudo bem ❤️‍🩹 então"), "Tudo bem  então");
+});

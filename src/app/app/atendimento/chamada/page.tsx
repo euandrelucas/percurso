@@ -17,7 +17,7 @@ export default async function Page() {
   if (!available) {
     return (
       <div className="card max-w-lg mx-auto text-center py-10">
-        <h1 className="text-3xl font-semibold">Você já conversou hoje 💛</h1>
+        <h1 className="text-3xl font-semibold">Você já conversou hoje</h1>
         <p className="text-ink-soft mt-3">A chamada de hoje já foi realizada. Amanhã ela estará liberada de novo. Se precisar de apoio antes disso, você pode mandar mensagem.</p>
         <div className="mt-6 flex justify-center gap-3"><Link href="/app/atendimento/mensagens" className="btn btn-dark">Enviar mensagem</Link><Link href="/app" className="btn btn-ghost">Voltar</Link></div>
       </div>

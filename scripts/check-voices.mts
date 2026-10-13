@@ -21,7 +21,7 @@ for (const v of VOICES) {
   });
   const ok = res.ok;
   if (!ok) bad++;
-  console.log(`${ok ? "✅" : "❌"} ${v.id.padEnd(8)} ${v.desc}${ok ? "" : `  → ${res.status} ${(await res.text()).slice(0, 160).replace(/\s+/g, " ")}`}`);
+  console.log(`${ok ? "[ok]" : "[FALHOU]"} ${v.id.padEnd(8)} ${v.desc}${ok ? "" : `  → ${res.status} ${(await res.text()).slice(0, 160).replace(/\s+/g, " ")}`}`);
 }
 console.log(bad ? `\n${bad} voz(es) recusada(s): o app usa a voz "alloy" como reserva automática, mas vale tirar a voz recusada da lista.` : "\nTodas as vozes aceitas.");
 process.exit(bad ? 1 : 0);

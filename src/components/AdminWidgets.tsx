@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./icons";
 
 const post = (url: string, body?: unknown, method = "POST") => fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
 export function CopyButton({ text, label = "Copiar" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
   return (
-    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text.startsWith("/") ? window.location.origin + text : text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? "Copiado ✓" : label}</button>
+    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text.startsWith("/") ? window.location.origin + text : text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? <span className="inline-flex items-center gap-1">Copiado <Icon name="check" size={13} strokeWidth={3} /></span> : label}</button>
   );
 }
 

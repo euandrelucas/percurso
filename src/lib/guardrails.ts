@@ -25,9 +25,14 @@ export function checkReply(text: string, ctx: { riskLevel?: number } = {}): Viol
   return v;
 }
 
-/** Correções seguras sem nova chamada ao modelo (remoção de markdown). */
+/** Emojis (pictogramas e variações); o app usa ícones SVG, então a IA não deve mandar emojis. */
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2B55}\u{FE0F}\u{200D}]/gu;
+
+/** Correções seguras sem nova chamada ao modelo (remoção de markdown e emojis). */
 export function sanitizeReply(text: string): string {
   return text
+    .replace(EMOJI, "")
+    .replace(/[ \t]+$/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/(^|\n)\s*#{1,4}\s*/g, "$1")
     .replace(/(^|\n)\s*[-*•]\s+/g, "$1")
