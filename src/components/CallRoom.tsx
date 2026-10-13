@@ -31,6 +31,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const cam = useRef<MediaStream | null>(null);
   const selfVideo = useRef<HTMLVideoElement>(null);
   const audioEl = useRef<HTMLAudioElement>(null);
+  const [needsSound, setNeedsSound] = useState(false);
   const actx = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
   const levelBuf = useRef<Uint8Array<ArrayBuffer> | null>(null);
@@ -219,6 +220,12 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         case "response.done": {
           const out = ((e.response as { output?: { type: string; name?: string; arguments?: string; call_id?: string }[] })?.output ?? []);
           const spoke = out.some((o) => o.type === "message");
+          const resp = e.response as { status?: string; status_details?: { error?: { message?: string } } } | undefined;
+          if (resp?.status === "failed") {
+            console.warn("[realtime] resposta falhou", resp.status_details);
+            setErr(`A IA não conseguiu responder${resp.status_details?.error?.message ? `: ${resp.status_details.error.message}` : "."}`);
+            setThinking(false);
+          }
           for (const o of out) {
             if (o.type !== "function_call" || !o.call_id) continue;
             let args: Record<string, unknown> = {};
@@ -238,9 +245,13 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           }
           break;
         }
-        case "error":
+        case "error": {
           console.warn("[realtime]", e);
+          const m = (e.error as { message?: string } | undefined)?.message;
+          setErr(`A IA não conseguiu responder${m ? `: ${m}` : "."} Se persistir, saia e entre de novo.`);
+          setThinking(false);
           break;
+        }
       }
     },
     [finishAfterGoodbye, saveTurn, sendEvent],
@@ -271,8 +282,15 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       pc.current = conn;
       conn.ontrack = (ev) => {
         const stream = ev.streams[0];
-        if (audioEl.current) audioEl.current.srcObject = stream;
+        if (audioEl.current) {
+          audioEl.current.srcObject = stream;
+          audioEl.current.muted = false;
+          audioEl.current.volume = 1;
+          // Alguns navegadores (iOS/Safari, Chrome com política restrita) bloqueiam o autoplay: pede um toque para liberar o som.
+          audioEl.current.play().catch(() => setNeedsSound(true));
+        }
         const ctx = new AudioContext();
+        void ctx.resume().catch(() => {});
         actx.current = ctx;
         const an = ctx.createAnalyser();
         an.fftSize = 512;
@@ -416,7 +434,19 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const low = secs <= 300;
   return (
     <div className="fixed inset-0 z-30 bg-[#0b1220] text-white flex flex-col">
-      <audio ref={audioEl} autoPlay />
+      <audio ref={audioEl} autoPlay playsInline />
+      {needsSound && (
+        <button
+          className="absolute z-40 left-1/2 -translate-x-1/2 top-16 rounded-full bg-amber-400 text-black px-4 py-2 text-sm font-semibold shadow-lg"
+          onClick={() => {
+            void audioEl.current?.play().then(() => setNeedsSound(false)).catch(() => {});
+            void actx.current?.resume();
+          }}
+        >
+          🔈 Toque para ativar o som
+        </button>
+      )}
+      {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <div className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono ${low ? "bg-coral text-white" : "bg-white/10"}`}><span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />{mmss(secs)}</span>
