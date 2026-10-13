@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "./ui";
 
-export function AuthForm({ mode, defaultCode = "" }: { mode: "login" | "register"; defaultCode?: string }) {
+export function AuthForm({ mode, defaultCode = "", initialError = "" }: { mode: "login" | "register"; defaultCode?: string; initialError?: string }) {
   const router = useRouter();
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(initialError);
   const [busy, setBusy] = useState(false);
   const reg = mode === "register";
 
@@ -33,7 +33,8 @@ export function AuthForm({ mode, defaultCode = "" }: { mode: "login" | "register
         <div className="card !p-7 fade-up">
           <h1 className="text-3xl font-semibold">{reg ? "Criar sua conta" : "Bem-vindo de volta"}</h1>
           <p className="text-muted mt-1.5 mb-6 text-sm">{reg ? "Use o código de convite que você recebeu. Ele só funciona uma vez." : "Entre para continuar o seu percurso."}</p>
-          <form onSubmit={submit} className="space-y-4">
+          {/* method/action: sem JavaScript o formulário ainda funciona (POST + redirecionamento); com JavaScript o onSubmit assume. */}
+          <form onSubmit={submit} method="post" action={reg ? "/api/auth/register" : "/api/auth/login"} className="space-y-4">
             {reg && (
               <>
                 <div>

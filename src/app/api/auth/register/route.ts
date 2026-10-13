@@ -1,11 +1,11 @@
-import { bad, clientIp, json, parseBody, rateLimit } from "@/lib/api";
+import { bad, clientIp, formAware, json, parseBody, rateLimit } from "@/lib/api";
 import { createSession, requestIp } from "@/lib/auth";
 import { audit, prisma } from "@/lib/prisma";
 import { hashPassword, passwordProblem } from "@/lib/password";
 import { registerSchema } from "@/lib/schemas";
 import { headers } from "next/headers";
 
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const ip = clientIp(req);
   if (!rateLimit(`reg:${ip}`, 8, 10 * 60_000)) return bad("Muitas tentativas. Tente novamente em alguns minutos.", 429);
   const [b, err] = await parseBody(req, registerSchema, "Preencha todos os campos corretamente.");
@@ -39,3 +39,5 @@ export async function POST(req: Request) {
     return bad("Não foi possível criar a conta.", 500);
   }
 }
+
+export const POST = formAware("/cadastro", handle, ["code"]);

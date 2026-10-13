@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { bad, clientIp, json, parseBody, rateLimit } from "@/lib/api";
+import { bad, clientIp, formAware, json, parseBody, rateLimit } from "@/lib/api";
 import { createSession } from "@/lib/auth";
 import { audit, prisma } from "@/lib/prisma";
 import { dummyVerify, verifyPassword } from "@/lib/password";
@@ -8,7 +8,7 @@ import { loginSchema } from "@/lib/schemas";
 const GENERIC = "E-mail ou senha incorretos.";
 const MAX_FAILS = 5;
 
-export async function POST(req: Request) {
+async function handle(req: Request) {
   const ip = clientIp(req);
   const [b, err] = await parseBody(req, loginSchema, GENERIC);
   if (err) return err;
@@ -40,3 +40,5 @@ export async function POST(req: Request) {
   await audit(u.role === "admin" ? `admin:${u.id}` : "patient", "login.ok", u.id, undefined, ip);
   return json({ ok: true, next: u.role === "admin" ? "/admin" : u.onboarded ? "/app" : "/onboarding" });
 }
+
+export const POST = formAware("/entrar", handle);

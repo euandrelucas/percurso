@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 
 const post = (url: string, body?: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
-export function TwoFactorLogin() {
+export function TwoFactorLogin({ initialError = "" }: { initialError?: string }) {
   const router = useRouter();
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(initialError);
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,7 +23,7 @@ export function TwoFactorLogin() {
     router.refresh();
   }
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} method="post" action="/api/auth/2fa" className="space-y-4">
       <div><label className="label" htmlFor="code">Código do aplicativo autenticador</label>
         <input id="code" name="code" className="input text-center text-2xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus /></div>
       {err && <p role="alert" className="text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
