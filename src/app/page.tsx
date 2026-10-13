@@ -11,8 +11,8 @@ const steps = [
 
 const principles = [
   { t: "Transparência", d: "Você sempre sabe que está falando com uma IA. Sem teatro e sem promessas de cura." },
-  { t: "Pessoas por trás", d: "Uma equipe humana acompanha o estudo e é avisada em situações de risco." },
-  { t: "Privacidade", d: "Suas conversas são sigilosas, ficam restritas à equipe do estudo e não são vendidas nem usadas em anúncios." },
+  { t: "Pessoas por trás", d: "Uma pessoa responsável acompanha o estudo e é avisada em situações de risco." },
+  { t: "Privacidade", d: "Suas conversas ficam criptografadas, com acesso restrito à coordenação do estudo, e não são vendidas nem usadas em anúncios." },
   { t: "Segurança primeiro", d: "Sinais de risco acionam recursos de apoio imediato, como o CVV (188), em qualquer canal." },
 ];
 

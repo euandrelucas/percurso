@@ -95,8 +95,10 @@ export function Onboarding({ userName }: { userName: string }) {
           <div className="space-y-5">
             <ul className="space-y-3 text-ink-soft leading-relaxed">
               <li><strong className="text-ink">É uma IA.</strong> Seu acompanhante é uma inteligência artificial de apoio emocional. Não é um psicólogo humano, não faz diagnóstico e não substitui atendimento profissional.</li>
-              <li><strong className="text-ink">Tem gente por trás.</strong> Este é um estudo fechado. Uma equipe humana acompanha, lê resumos das conversas e é avisada em situações de risco.</li>
-              <li><strong className="text-ink">Sigilo com limite.</strong> Suas conversas são confidenciais e não são vendidas. Se houver risco à sua vida ou à de outras pessoas, a equipe pode agir para te proteger.</li>
+              <li><strong className="text-ink">Um estudo entre convidados.</strong> Você faz parte de um estudo fechado, com um grupo pequeno de pessoas. O objetivo é entender se esta ferramenta ajuda e como melhorá-la.</li>
+              <li><strong className="text-ink">Suas conversas são criptografadas.</strong> Tudo o que você escreve ou fala fica criptografado no servidor, e o acesso é restrito à pessoa que coordena o estudo. Suas conversas não são lidas no dia a dia, não são vendidas e não são usadas em anúncios.</li>
+              <li><strong className="text-ink">No fim do estudo.</strong> Quando ele terminar, as conversas e os resumos poderão ser analisados pela pessoa responsável pela pesquisa, para avaliar a ferramenta. Qualquer divulgação de resultados será feita sem identificar você.</li>
+              <li><strong className="text-ink">Se houver risco.</strong> Se a IA perceber risco à sua vida ou à de outras pessoas, a pessoa responsável é avisada e pode ver o trecho da conversa relacionado, para tentar te ajudar.</li>
               <li><strong className="text-ink">Em emergência, procure ajuda humana:</strong> {CRISIS_RESOURCES.cvv}; {CRISIS_RESOURCES.samu}; ou {CRISIS_RESOURCES.upa}.</li>
               <li><strong className="text-ink">Você pode sair quando quiser.</strong> Sem justificativa.</li>
             </ul>
@@ -104,8 +106,8 @@ export function Onboarding({ userName }: { userName: string }) {
               {[
                 ["adult", "Tenho 18 anos ou mais."],
                 ["ai", "Entendo que estou conversando com uma IA e que ela não substitui um profissional de saúde."],
-                ["privacy", "Entendi como meus dados são tratados e os limites do sigilo."],
-                ["study", "Aceito participar deste estudo fechado e que a equipe acompanhe um resumo das conversas."],
+                ["privacy", "Li e entendi como meus dados são tratados: criptografia, uso no fim do estudo e a exceção para situações de risco."],
+                ["study", "Aceito participar deste estudo fechado e que, ao final dele, minhas conversas sejam analisadas pela pessoa responsável pela pesquisa."],
               ].map(([k, t]) => (
                 <label key={k} className="flex items-start gap-3 cursor-pointer">
                   <input type="checkbox" className="mt-1 w-5 h-5 accent-teal" checked={consent[k as keyof typeof consent]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} />
