@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/icons";
 
 const FACES = [
-  { e: "😞", s: 1, t: "Muito mal" },
-  { e: "😕", s: 3, t: "Mal" },
-  { e: "😐", s: 5, t: "Mais ou menos" },
-  { e: "🙂", s: 7, t: "Bem" },
-  { e: "😄", s: 9, t: "Muito bem" },
+  { e: "face-1" as const, s: 1, t: "Muito mal" },
+  { e: "face-2" as const, s: 3, t: "Mal" },
+  { e: "face-3" as const, s: 5, t: "Mais ou menos" },
+  { e: "face-4" as const, s: 7, t: "Bem" },
+  { e: "face-5" as const, s: 9, t: "Muito bem" },
 ];
 
 /** Humor em um toque (carinhas). "Escolher de 0 a 10" abre a escala completa para quem quer precisão. */
@@ -29,7 +30,7 @@ export function MoodCheckin({ today }: { today?: number | null }) {
       <div className="grid grid-cols-5 gap-2" role="group" aria-label="Como você está">
         {FACES.map((f) => (
           <button key={f.s} onClick={() => save(f.s)} aria-pressed={score === f.s} aria-label={`${f.t} (${f.s} de 10)`} className="rounded-2xl border border-line bg-paper py-2.5 text-center hover:border-teal aria-pressed:border-teal aria-pressed:bg-teal-soft">
-            <div className="text-2xl">{f.e}</div>
+            <Icon name={f.e} size={30} className="mx-auto text-teal-deep" />
             <div className="text-[11px] text-muted mt-0.5 leading-tight">{f.t}</div>
           </button>
         ))}
@@ -42,7 +43,7 @@ export function MoodCheckin({ today }: { today?: number | null }) {
           ))}
         </div>
       )}
-      {saved && <p className="text-xs text-teal-deep mt-2">Registrado. Obrigado por cuidar de você 💛</p>}
+      {saved && <p className="text-xs text-teal-deep mt-2">Registrado. Obrigado por cuidar de você. <Icon name="heart" size={13} className="text-coral -mt-0.5" /></p>}
     </div>
   );
 }
@@ -62,17 +63,17 @@ export function ExerciseItem({ ex }: { ex: { id: number; title: string; descript
   return (
     <li className="rounded-2xl border border-line bg-paper p-4">
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 w-5 h-5 rounded-full border-2 grid place-items-center text-[11px] text-white ${done ? "bg-teal border-teal" : "border-line"}`} aria-hidden>{done ? "✓" : ""}</div>
+        <div className={`mt-0.5 w-5 h-5 rounded-full border-2 grid place-items-center text-[11px] text-white ${done ? "bg-teal border-teal" : "border-line"}`} aria-hidden>{done ? <Icon name="check" size={12} strokeWidth={3} /> : null}</div>
         <div className="flex-1 min-w-0">
           <p className={`font-semibold ${done ? "line-through text-muted" : ""}`}>{ex.title}</p>
           <p className="text-sm text-ink-soft mt-0.5">{ex.description}</p>
           {ex.feedback && <p className="text-xs text-muted mt-1.5">Você disse: “{ex.feedback}”</p>}
-          {skipped && <p className="text-sm text-teal-deep mt-2">Tudo bem, acontece. Na próxima conversa a gente ajusta o exercício para ficar mais fácil 💛</p>}
+          {skipped && <p className="text-sm text-teal-deep mt-2">Tudo bem, acontece. Na próxima conversa a gente ajusta o exercício para ficar mais fácil. <Icon name="heart" size={13} className="text-coral -mt-0.5" /></p>}
           {ex.status === "pendente" && !open && !skipped && <button className="text-sm text-teal-deep font-semibold mt-2" onClick={() => setOpen(true)}>Responder: fiz / não consegui</button>}
           {ex.status === "pendente" && open && !skipped && (
             <div className="mt-3 space-y-2">
               <textarea className="input text-sm" rows={2} maxLength={400} placeholder="Como foi? Se não deu, o que atrapalhou? (opcional — seu acompanhante vai ler isso)" value={fb} onChange={(e) => setFb(e.target.value)} />
-              <div className="flex flex-wrap gap-2"><button className="btn btn-primary !py-1.5 !px-4 text-sm" onClick={() => mark("feito")}>Fiz ✓</button><button className="btn btn-ghost !py-1.5 !px-4 text-sm" onClick={() => mark("nao_realizado")}>Não consegui</button><button className="text-xs text-muted underline px-2" onClick={() => setOpen(false)}>Cancelar</button></div>
+              <div className="flex flex-wrap gap-2"><button className="btn btn-primary !py-1.5 !px-4 text-sm" onClick={() => mark("feito")}><Icon name="check" size={16} strokeWidth={2.6} />Fiz</button><button className="btn btn-ghost !py-1.5 !px-4 text-sm" onClick={() => mark("nao_realizado")}>Não consegui</button><button className="text-xs text-muted underline px-2" onClick={() => setOpen(false)}>Cancelar</button></div>
             </div>
           )}
           {done && <button className="text-xs text-muted underline mt-1.5" onClick={() => mark("pendente")}>desfazer</button>}
@@ -120,7 +121,7 @@ export function ReminderToggle() {
   if (state === "unsupported") return null;
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span aria-hidden>🔔</span>
+      <Icon name="bell" size={20} className="text-teal-deep" />
       <div className="flex-1">
         <p className="font-semibold">Lembrete gentil às 19h</p>
         <p className="text-xs text-muted">{state === "denied" ? "As notificações estão bloqueadas neste navegador. Libere nas configurações do site para ativar." : "Um aviso curto, sem detalhes, só se você ainda não tiver conversado hoje."}</p>

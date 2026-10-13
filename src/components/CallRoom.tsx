@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
 import { HELP_SIGNAL_CUE, REMINDER_VOICE, TRANSCRIPT_WRONG_CUE, timeCue } from "@/lib/prompts/phases";
+import { Icon } from "@/components/icons";
 
 type Props = { agent: { name: string; avatar: AvatarT; preferredName: string }; first: boolean; maxMinutes: number; resumable: boolean };
 type Phase = "lobby" | "connecting" | "live" | "ended" | "error";
@@ -492,18 +493,18 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         <div className="w-32 h-32 mx-auto rounded-full overflow-hidden"><Avatar avatar={agent.avatar} className="w-full h-full" /></div>
         <h1 className="text-3xl font-semibold mt-5">Sessão encerrada</h1>
         <p className="text-ink-soft mt-3 leading-relaxed">Obrigado por esse tempo, {agent.preferredName}. {agent.name} está preparando o resumo da conversa e o que ficou combinado para você.</p>
-        {err && <p className="text-sm text-[#b4401f] mt-3">{err}</p>}
+        {err && <p className="text-sm text-coral-ink mt-3">{err}</p>}
         {sid.current && (
           <div className="mt-6 text-left bg-teal-soft/60 rounded-2xl p-4">
             {fb.sent ? (
-              <p className="text-center text-sm text-ink-soft">Obrigado por contar. Isso ajuda {agent.name} a cuidar melhor das próximas conversas. 💛</p>
+              <p className="text-center text-sm text-ink-soft">Obrigado por contar. Isso ajuda {agent.name} a cuidar melhor das próximas conversas.</p>
             ) : (
               <>
                 <p className="font-semibold text-center">Como foi essa conversa pra você?</p>
                 <div className="grid grid-cols-3 gap-2 mt-3" role="group" aria-label="Avaliação da conversa">
-                  {[{ r: 3, e: "😊", t: "Me ajudou" }, { r: 2, e: "😐", t: "Mais ou menos" }, { r: 1, e: "😕", t: "Não ajudou" }].map((o) => (
+                  {[{ r: 3, e: "face-5" as const, t: "Me ajudou" }, { r: 2, e: "face-3" as const, t: "Mais ou menos" }, { r: 1, e: "face-2" as const, t: "Não ajudou" }].map((o) => (
                     <button key={o.r} type="button" style={{ textAlign: "center" }} className="choice !px-2 !py-3" aria-pressed={fb.rating === o.r} onClick={() => setFb((f) => ({ ...f, rating: o.r }))}>
-                      <div className="text-2xl">{o.e}</div>
+                      <Icon name={o.e} size={28} className="mx-auto" />
                       <div className="text-xs mt-1">{o.t}</div>
                     </button>
                   ))}
@@ -544,7 +545,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     return (
       <div className="max-w-4xl mx-auto grid md:grid-cols-[1.3fr_1fr] gap-6 items-center">
         <div className="relative rounded-3xl overflow-hidden bg-night aspect-video shadow-lg">
-          {camOn ? <video ref={selfVideo} autoPlay muted playsInline className="w-full h-full object-cover [transform:scaleX(-1)]" /> : <div className="w-full h-full grid place-items-center text-white/70"><div className="text-center"><div className="text-5xl mb-2">🎙️</div><p className="text-sm">Câmera desligada</p></div></div>}
+          {camOn ? <video ref={selfVideo} autoPlay muted playsInline className="w-full h-full object-cover [transform:scaleX(-1)]" /> : <div className="w-full h-full grid place-items-center text-white/70"><div className="text-center"><Icon name="mic" size={44} className="mx-auto mb-2" /><p className="text-sm">Câmera desligada</p></div></div>}
           <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 text-white text-xs">
             <div className="h-1.5 flex-1 rounded-full bg-white/20 overflow-hidden"><div className="h-full bg-teal transition-[width] duration-75" style={{ width: `${micLevel * 100}%` }} /></div><span>teste de microfone</span>
           </div>
@@ -558,13 +559,13 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
               <span><strong>Fones de ouvido</strong>, se tiver: evitam eco e deixam a conversa mais fiel. Escolha um lugar tranquilo.</span>
             </li>
             <li className="flex gap-3">
-              <span className={`mt-0.5 w-6 h-6 rounded-full grid place-items-center text-xs font-bold shrink-0 ${micState === "ok" ? "bg-teal text-white" : "bg-teal-soft text-teal-deep"}`}>{micState === "ok" ? "✓" : "2"}</span>
+              <span className={`mt-0.5 w-6 h-6 rounded-full grid place-items-center text-xs font-bold shrink-0 ${micState === "ok" ? "bg-teal text-white" : "bg-teal-soft text-teal-deep"}`}>{micState === "ok" ? <Icon name="check" size={14} strokeWidth={3} /> : "2"}</span>
               <span className="flex-1">
                 <strong>Teste o microfone</strong>
                 {micState === "idle" && <span className="block text-muted">Toque no botão e diga “oi” em voz normal.</span>}
                 {micState === "listening" && <span className="block text-muted">Estou ouvindo… diga “oi” em voz normal.</span>}
-                {micState === "ok" && <span className="block text-teal-deep font-semibold">Estou te ouvindo bem ✓</span>}
-                {micState === "silent" && <span className="block text-[#b4401f]">Ainda não ouvi nada. Fale um pouco mais alto e mais perto, confira se o microfone certo está selecionado e se o navegador deixou usar o microfone.</span>}
+                {micState === "ok" && <span className="block text-teal-deep font-semibold"><Icon name="check" size={14} strokeWidth={3} className="mr-1 -mt-0.5" />Estou te ouvindo bem</span>}
+                {micState === "silent" && <span className="block text-coral-ink">Ainda não ouvi nada. Fale um pouco mais alto e mais perto, confira se o microfone certo está selecionado e se o navegador deixou usar o microfone.</span>}
               </span>
             </li>
             <li className="flex gap-3">
@@ -580,7 +581,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
             <button className={`btn ${micState === "ok" ? "btn-ghost" : "btn-primary"}`} onClick={startMicPreview}>{micState === "idle" ? "Testar microfone" : "Testar de novo"}</button>
             <button className="btn btn-ghost" onClick={toggleCam}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
           </div>
-          {err && <p role="alert" className="mt-4 text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+          {err && <p role="alert" className="mt-4 text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
           <button className={`btn mt-5 w-full text-base ${micState === "ok" || micState === "idle" ? "btn-primary" : "btn-ghost"}`} onClick={join} disabled={phase === "connecting"}>{phase === "connecting" ? "Conectando…" : resumable ? "Retomar chamada" : "Entrar na chamada"}</button>
         </div>
       </div>
@@ -598,12 +599,12 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
             void actx.current?.resume();
           }}
         >
-          🔈 Toque para ativar o som
+          <Icon name="volume" size={16} className="mr-1.5 -mt-0.5" />Toque para ativar o som
         </button>
       )}
       {reconnecting && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 top-16 rounded-full bg-amber-400 text-black px-4 py-2 text-sm font-semibold shadow-lg animate-pulse">Reconectando… sua conversa continua de onde parou</div>}
       {toast && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 bottom-28 rounded-full bg-white/90 text-black px-4 py-2 text-sm shadow-lg">{toast}</div>}
-      {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+      {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <div className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono ${low ? "bg-coral text-white" : "bg-white/10"}`}><span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />{mmss(secs)}</span>
@@ -651,9 +652,9 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       )}
 
       <div className="flex items-center justify-center gap-3 pb-6 pt-2">
-        <button onClick={toggleMute} aria-pressed={muted} aria-label={muted ? "Ativar microfone" : "Silenciar microfone"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${muted ? "bg-red-600" : "bg-white/15 hover:bg-white/25"}`}>{muted ? "🔇" : "🎙️"}</button>
-        <button onClick={toggleCam} aria-pressed={camOn} aria-label={camOn ? "Desligar câmera" : "Ligar câmera"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${camOn ? "bg-white/25" : "bg-white/10 hover:bg-white/20"}`}>{camOn ? "📹" : "🚫"}</button>
-        {!demo && <button onClick={notHelping} aria-label="Não está ajudando: pedir para mudar de jeito" title="Não está ajudando" className="h-12 px-4 rounded-full bg-white/10 hover:bg-white/20 text-sm font-semibold whitespace-nowrap"><span aria-hidden>🤔</span><span className="hidden sm:inline"> Não está ajudando</span></button>}
+        <button onClick={toggleMute} aria-pressed={muted} aria-label={muted ? "Ativar microfone" : "Silenciar microfone"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${muted ? "bg-red-600" : "bg-white/15 hover:bg-white/25"}`}><Icon name={muted ? "mic-off" : "mic"} size={22} /></button>
+        <button onClick={toggleCam} aria-pressed={camOn} aria-label={camOn ? "Desligar câmera" : "Ligar câmera"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${camOn ? "bg-white/25" : "bg-white/10 hover:bg-white/20"}`}><Icon name={camOn ? "video" : "video-off"} size={22} /></button>
+        {!demo && <button onClick={notHelping} aria-label="Não está ajudando: pedir para mudar de jeito" title="Não está ajudando" className="h-12 px-4 rounded-full bg-white/10 hover:bg-white/20 text-sm font-semibold whitespace-nowrap"><Icon name="help" size={20} className="sm:mr-1.5 sm:-mt-0.5" /><span className="hidden sm:inline">Não está ajudando</span></button>}
         <button onClick={() => setCaptions(!captions)} aria-pressed={captions} aria-label="Legendas" className={`w-12 h-12 rounded-full grid place-items-center text-xs font-bold ${captions ? "bg-white/25" : "bg-white/10 hover:bg-white/20"}`}>CC</button>
         <button onClick={() => { if (confirm("Encerrar a chamada agora? Seu direito de hoje será considerado usado.")) void finish("paciente"); }} aria-label="Encerrar chamada" className="h-12 px-6 rounded-full bg-red-600 hover:bg-red-500 font-semibold">Encerrar</button>
       </div>

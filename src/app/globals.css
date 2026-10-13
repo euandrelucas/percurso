@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 @theme {
+  --color-active: #0f1829; /* item selecionado (menu, abas): escuro no tema claro, teal no escuro */
+  --color-bubble: #d6f1ec; /* balão de quem escreve no chat */
+  --color-chatbg: #efeae0;
+  --color-amber-ink: #8a5a00;
+  --color-coral-ink: #b4401f;
+  --color-crisis-line: #f6d2c9;
   --color-night: #0f1829; /* escuro fixo (fundos que precisam ficar escuros nos dois temas) */
   --color-ink: #0f1829;
   --color-ink-soft: #2a3447;
@@ -72,22 +78,26 @@ h1, h2, h3, .serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
 [data-theme="dark"],
 [data-theme="auto"] {
   --dk-ink: #f1ede4; --dk-ink-soft: #cdd5e3; --dk-muted: #9aa6bd; --dk-line: #2b3549; --dk-sand: #0d1420; --dk-sand-deep: #18212f;
-  --dk-paper: #141c2b; --dk-teal-soft: #11332f; --dk-teal-deep: #5ed1c4; --dk-coral-soft: #3b1f18; --dk-amber-soft: #3a3115;
+  --dk-paper: #141c2b; --dk-active: #0d9488; --dk-bubble: #0f4a43; --dk-chatbg: #0a1019; --dk-amber-ink: #f2c46b; --dk-coral-ink: #ff9d85; --dk-crisis-line: #5a2e24; --dk-teal-soft: #11332f; --dk-teal-deep: #5ed1c4; --dk-coral-soft: #3b1f18; --dk-amber-soft: #3a3115;
 }
 [data-theme="dark"] {
   --color-ink: var(--dk-ink); --color-ink-soft: var(--dk-ink-soft); --color-muted: var(--dk-muted); --color-line: var(--dk-line); --color-sand: var(--dk-sand);
   --color-sand-deep: var(--dk-sand-deep); --color-paper: var(--dk-paper); --color-teal-soft: var(--dk-teal-soft); --color-teal-deep: var(--dk-teal-deep);
   --color-coral-soft: var(--dk-coral-soft); --color-amber-soft: var(--dk-amber-soft);
+  --color-active: var(--dk-active); --color-bubble: var(--dk-bubble); --color-chatbg: var(--dk-chatbg); --color-amber-ink: var(--dk-amber-ink); --color-coral-ink: var(--dk-coral-ink); --color-crisis-line: var(--dk-crisis-line);
 }
 @media (prefers-color-scheme: dark) {
   [data-theme="auto"] {
     --color-ink: var(--dk-ink); --color-ink-soft: var(--dk-ink-soft); --color-muted: var(--dk-muted); --color-line: var(--dk-line); --color-sand: var(--dk-sand);
     --color-sand-deep: var(--dk-sand-deep); --color-paper: var(--dk-paper); --color-teal-soft: var(--dk-teal-soft); --color-teal-deep: var(--dk-teal-deep);
     --color-coral-soft: var(--dk-coral-soft); --color-amber-soft: var(--dk-amber-soft);
+    --color-active: var(--dk-active); --color-bubble: var(--dk-bubble); --color-chatbg: var(--dk-chatbg); --color-amber-ink: var(--dk-amber-ink); --color-coral-ink: var(--dk-coral-ink); --color-crisis-line: var(--dk-crisis-line);
   }
 }
 .pc-shell { background: var(--color-sand); color: var(--color-ink); min-height: 100dvh; }
 [data-theme="dark"] .btn-primary:hover:not(:disabled), [data-theme="auto"] .btn-primary:hover:not(:disabled) { background: #0f766e; }
 [data-theme="dark"] .chip[aria-pressed="true"] { background: var(--color-teal); border-color: var(--color-teal); }
 @media (prefers-color-scheme: dark) { [data-theme="auto"] .chip[aria-pressed="true"] { background: var(--color-teal); border-color: var(--color-teal); } }
+[data-theme="dark"] .btn-dark { background: #243049; border: 1px solid #34425f; }
+@media (prefers-color-scheme: dark) { [data-theme="auto"] .btn-dark { background: #243049; border: 1px solid #34425f; } }
 [data-fs="large"] { zoom: 1.15; }

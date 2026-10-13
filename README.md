@@ -27,7 +27,7 @@ BIND_ADDR=127.0.0.1                           # não expõe a porta 88 na intern
 e no nginx (`proxy_pass http://127.0.0.1:88;`), além do `Host` e `X-Forwarded-Proto`, use **`proxy_set_header X-Forwarded-For $remote_addr;`** (e não `$proxy_add_x_forwarded_for`, que deixaria o cliente forjar o IP e escapar do rate limit). Depois: `docker compose up -d`.
 
 - Logs: `docker compose logs -f app` · Backup do banco: `./scripts/backup.sh` · Atualizar: `git pull && docker compose up -d --build`
-- ⚠️ **Guarde o `ENCRYPTION_KEY`** (no `.env`, ou no volume `appdata` se foi auto‑gerada): sem ela as transcrições/memória cifradas não podem ser lidas. Faça backup do banco **e** da chave, em locais separados.
+- **Atenção: guarde o `ENCRYPTION_KEY`** (no `.env`, ou no volume `appdata` se foi auto‑gerada): sem ela as transcrições/memória cifradas não podem ser lidas. Faça backup do banco **e** da chave, em locais separados.
 - Microfone e câmera só funcionam em **HTTPS** (ou `localhost`) — por isso o Caddy com domínio.
 
 ## Desenvolvimento
@@ -89,6 +89,6 @@ O modelo nunca recebe a ficha toda nem o histórico bruto — recebe um prompt *
 
 1 chamada/dia de até 60 min (`CALLS_PER_DAY`, `SESSION_MAX_MINUTES`; ajustável por paciente), encerramento conversado (avisos aos 10/5/1 min, tolerância de 20 s), retomada após queda, chat com limite diário. Vídeo do paciente é local e nunca enviado.
 
-## ⚠️ Antes de convidar alguém
+## Antes de convidar alguém
 
 Beta técnico. O documento de produto exige antes de qualquer participante real: aprovação de comitê de ética, termo de consentimento revisado, revisão jurídica (LGPD — dados de saúde são sensíveis), psicólogo responsável para os alertas e contrato com o provedor de IA que proíba treino com os dados. A IA só sinaliza risco; a decisão é humana.

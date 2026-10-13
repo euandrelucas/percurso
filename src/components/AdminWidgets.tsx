@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./icons";
 
 const post = (url: string, body?: unknown, method = "POST") => fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
 export function CopyButton({ text, label = "Copiar" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
   return (
-    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text.startsWith("/") ? window.location.origin + text : text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? "Copiado ✓" : label}</button>
+    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text.startsWith("/") ? window.location.origin + text : text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? <span className="inline-flex items-center gap-1">Copiado <Icon name="check" size={13} strokeWidth={3} /></span> : label}</button>
   );
 }
 
@@ -47,7 +48,7 @@ export function InviteForm({ appUrl }: { appUrl: string }) {
 
 export function RevokeInvite({ id }: { id: number }) {
   const router = useRouter();
-  return <button className="text-xs text-[#b4401f] hover:underline" onClick={async () => { if (!confirm("Revogar este convite?")) return; await post("/api/admin/invites", { id }, "DELETE"); router.refresh(); }}>revogar</button>;
+  return <button className="text-xs text-coral-ink hover:underline" onClick={async () => { if (!confirm("Revogar este convite?")) return; await post("/api/admin/invites", { id }, "DELETE"); router.refresh(); }}>revogar</button>;
 }
 
 export function AlertActions({ id, status }: { id: number; status: string }) {
@@ -100,7 +101,7 @@ export function PatientActions({ id, status, callsPerDay, hasReport }: { id: num
         <button className="btn btn-primary" onClick={report} disabled={busy}>{busy ? "Gerando dossiê… (pode levar ~1 min)" : "Gerar dossiê completo (PDF)"}</button>
         {hasReport && <a className="btn btn-ghost" href={`/api/admin/users/${id}/pdf?x=1${qs}`}>Baixar último dossiê</a>}
         <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" className="accent-teal w-4 h-4" checked={transcripts} onChange={(e) => setTranscripts(e.target.checked)} />incluir transcrições completas</label>
-        {err && <span className="text-sm text-[#b4401f]">{err}</span>}
+        {err && <span className="text-sm text-coral-ink">{err}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-line">
         <label className="flex items-center gap-2 text-sm text-muted">Chamadas por dia

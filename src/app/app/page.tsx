@@ -6,6 +6,7 @@ import { ExerciseItem, MoodCheckin, ReminderToggle } from "@/components/PatientW
 import { parseAvatar } from "@/lib/prompts/options";
 import { activeGoals, allExercises, callAvailability, endedSessions, getAgent, hasCompletedSession, moodHistory, parseAnalysis } from "@/lib/store";
 import { dayKey, fmtDate } from "@/lib/time";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export default async function Home() {
         <ul className="space-y-2.5">
           {steps.map((st) => (
             <li key={st.text} className="flex items-center gap-3">
-              <span className={`w-6 h-6 rounded-full grid place-items-center text-xs shrink-0 ${st.done ? "bg-teal text-white" : "border-2 border-line"}`} aria-hidden>{st.done ? "✓" : ""}</span>
+              <span className={`w-6 h-6 rounded-full grid place-items-center text-xs shrink-0 ${st.done ? "bg-teal text-white" : "border-2 border-line"}`} aria-hidden>{st.done ? <Icon name="check" size={13} strokeWidth={3} /> : null}</span>
               <span className={`flex-1 ${st.done ? "text-muted" : ""}`}>{st.text}</span>
               {st.href && <a href={st.href} className="text-sm font-semibold text-teal-deep">{st.cta}</a>}
             </li>
@@ -84,7 +85,7 @@ export default async function Home() {
         <section className="card">
           <h2 className="text-xl font-semibold mb-3">Suas metas</h2>
           {goals.length ? (
-            <ul className="space-y-2">{goals.map((g) => <li key={g.id} className="flex gap-2.5"><span className="text-teal mt-0.5">◎</span><span>{g.title}</span></li>)}</ul>
+            <ul className="space-y-2">{goals.map((g) => <li key={g.id} className="flex gap-2.5"><Icon name="target" size={17} className="text-teal mt-1" /><span>{g.title}</span></li>)}</ul>
           ) : (
             <p className="text-sm text-muted">Suas metas vão aparecer aqui depois da primeira sessão. Elas são combinadas com você, nunca impostas.</p>
           )}

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./icons";
 
 const post = (url: string, body?: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
@@ -26,7 +27,7 @@ export function TwoFactorLogin({ initialError = "" }: { initialError?: string })
     <form onSubmit={submit} method="post" action="/api/auth/2fa" className="space-y-4">
       <div><label className="label" htmlFor="code">Código do aplicativo autenticador</label>
         <input id="code" name="code" className="input text-center text-2xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus /></div>
-      {err && <p role="alert" className="text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+      {err && <p role="alert" className="text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <button className="btn btn-primary w-full" disabled={busy}>{busy ? "Verificando…" : "Confirmar"}</button>
     </form>
   );
@@ -89,13 +90,13 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
       )}
       {enabled && (
         <div className="space-y-3">
-          <p className="text-sm text-teal-deep font-semibold">✓ Verificação em duas etapas ativa.</p>
+          <p className="text-sm text-teal-deep font-semibold"><Icon name="check" size={15} strokeWidth={3} className="mr-1 -mt-0.5" />Verificação em duas etapas ativa.</p>
           <details><summary className="cursor-pointer text-sm text-muted">Desativar…</summary>
             <div className="mt-3 flex flex-wrap gap-2"><input className="input !w-56" type="password" placeholder="Senha atual" value={pw} onChange={(e) => setPw(e.target.value)} /><input className="input !w-36 text-center" inputMode="numeric" maxLength={6} placeholder="Código" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} /><button className="btn btn-danger" onClick={disable}>Desativar</button></div>
           </details>
         </div>
       )}
-      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-[#b4401f]"}`}>{msg.t}</p>}
+      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-coral-ink"}`}>{msg.t}</p>}
     </div>
   );
 }
@@ -121,7 +122,7 @@ export function PasswordForm() {
     <form onSubmit={submit} className="grid sm:grid-cols-2 gap-3 max-w-xl">
       <div><label className="label" htmlFor="cur">Senha atual</label><input id="cur" type="password" className="input" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" required /></div>
       <div><label className="label" htmlFor="nxt">Nova senha</label><input id="nxt" type="password" className="input" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" minLength={10} required /></div>
-      <div className="sm:col-span-2 flex items-center gap-3"><button className="btn btn-dark" disabled={busy}>Alterar senha</button>{msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-[#b4401f]"}`}>{msg.t}</span>}</div>
+      <div className="sm:col-span-2 flex items-center gap-3"><button className="btn btn-dark" disabled={busy}>Alterar senha</button>{msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-coral-ink"}`}>{msg.t}</span>}</div>
     </form>
   );
 }

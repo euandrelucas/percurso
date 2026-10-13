@@ -36,11 +36,11 @@ export default async function Dashboard() {
         sub="Visão geral do beta fechado: adesão, uso e segurança."
         action={<a href="/api/admin/export" className="btn btn-ghost text-sm">Exportar CSV do estudo</a>}
       />
-      {config.mock() && <div className="mb-5 rounded-xl bg-amber-soft text-[#8a5a00] px-4 py-3 text-sm"><strong>Modo demonstração:</strong> OPENAI_API_KEY não configurada — respostas e análises são simuladas.</div>}
+      {config.mock() && <div className="mb-5 rounded-xl bg-amber-soft text-amber-ink px-4 py-3 text-sm"><strong>Modo demonstração:</strong> OPENAI_API_KEY não configurada — respostas e análises são simuladas.</div>}
 
       {alerts.length > 0 && (
         <section className="mb-8 rounded-2xl border border-[#f1c4b8] bg-coral-soft p-5">
-          <div className="flex items-center justify-between mb-3"><h2 className="text-xl font-semibold">Alertas que precisam de você</h2><Link href="/admin/alertas" className="text-sm font-semibold text-[#b4401f]">ver todos ({s.openAlerts})</Link></div>
+          <div className="flex items-center justify-between mb-3"><h2 className="text-xl font-semibold">Alertas que precisam de você</h2><Link href="/admin/alertas" className="text-sm font-semibold text-coral-ink">ver todos ({s.openAlerts})</Link></div>
           <ul className="space-y-2.5">
             {alerts.map((a) => (
               <li key={a.id} className="bg-white rounded-xl p-3 text-sm">
@@ -59,7 +59,7 @@ export default async function Dashboard() {
         <Stat label="Voltaram (2+ sessões)" value={`${s.returnRate}%`} sub={`${s.returning} de ${s.withSession}`} tone="good" />
         <Stat label="Sessões realizadas" value={s.sessionsEnded} sub={`média de ${s.avgDurMin} min`} />
         <Stat label="Sessões até o fim" value={`${s.fullRate}%`} sub="≥ 85% do tempo" />
-        <Stat label="A conversa ajudou?" value={s.help.total ? `${Math.round((s.help.yes / s.help.total) * 100)}% sim` : "—"} sub={s.help.total ? `😊 ${s.help.yes} · 😐 ${s.help.mid} · 😕 ${s.help.no} (${s.help.total} respostas)` : "ainda sem respostas"} tone={s.help.no > s.help.yes ? "alert" : "good"} />
+        <Stat label="A conversa ajudou?" value={s.help.total ? `${Math.round((s.help.yes / s.help.total) * 100)}% sim` : "—"} sub={s.help.total ? `ajudou ${s.help.yes} · mais ou menos ${s.help.mid} · não ajudou ${s.help.no} (${s.help.total} respostas)` : "ainda sem respostas"} tone={s.help.no > s.help.yes ? "alert" : "good"} />
         <Stat label="Usaram o chat" value={`${s.chatRate}%`} sub={`${s.chatMsgs} mensagens`} />
         <Stat label="Alertas abertos" value={s.openAlerts} sub={`${s.alertsTotal} no total · ${s.highAlerts} nível 3`} tone={s.openAlerts ? "alert" : "default"} />
       </div>

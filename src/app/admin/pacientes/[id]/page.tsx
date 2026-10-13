@@ -12,6 +12,7 @@ import { fmtDateTime } from "@/lib/time";
 import { config } from "@/lib/config";
 import { AvatarThumb } from "@/components/Avatar";
 import type { ReportData } from "@/lib/types";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Paciente" };
@@ -135,7 +136,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   <strong>Sessão {s.number}</strong><Badge tone={s.kind === "triagem" ? "warn" : "good"}>{s.kind}</Badge>
                   {s.status === "active" && <Badge tone="dark">em andamento</Badge>}
                   {a && a.risco.nivel >= 1 && <Badge tone={a.risco.nivel >= 3 ? "alert" : "warn"}>risco {a.risco.nivel}</Badge>}
-                  {s.feedbackRating && <Badge tone={s.feedbackRating === 3 ? "good" : s.feedbackRating === 1 ? "alert" : "warn"}>{s.feedbackRating === 3 ? "😊 ajudou" : s.feedbackRating === 2 ? "😐 mais ou menos" : "😕 não ajudou"}</Badge>}
+                  {s.feedbackRating && <Badge tone={s.feedbackRating === 3 ? "good" : s.feedbackRating === 1 ? "alert" : "warn"}><Icon name={s.feedbackRating === 3 ? "face-5" : s.feedbackRating === 2 ? "face-3" : "face-2"} size={14} className="mr-1 -mt-0.5" />{s.feedbackRating === 3 ? "ajudou" : s.feedbackRating === 2 ? "mais ou menos" : "não ajudou"}</Badge>}
                   <span className="text-sm text-muted ml-auto">{s.started} · {s.duration}{s.endReason ? ` · ${s.endReason}` : ""}</span>
                 </summary>
                 <div className="mt-4 space-y-4 text-sm">

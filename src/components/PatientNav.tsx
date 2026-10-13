@@ -26,7 +26,7 @@ export function PatientNav({ name, theme, size }: { name: string; theme: Theme; 
         <Logo href="/app" />
         <nav className="hidden md:flex items-center gap-1" aria-label="Principal">
           {items.map((i) => (
-            <Link key={i.href} href={i.href} aria-current={active(i) ? "page" : undefined} className={`px-4 py-2 rounded-full text-sm font-semibold ${active(i) ? "bg-night text-white" : "text-ink-soft hover:bg-sand-deep"}`}>{i.label}</Link>
+            <Link key={i.href} href={i.href} aria-current={active(i) ? "page" : undefined} className={`px-4 py-2 rounded-full text-sm font-semibold ${active(i) ? "bg-active text-white" : "text-ink-soft hover:bg-sand-deep"}`}>{i.label}</Link>
           ))}
         </nav>
         <div className="flex items-center gap-3 text-sm">

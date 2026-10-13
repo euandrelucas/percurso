@@ -116,7 +116,7 @@ export async function buildChatSystem(uid: number, riskLevel = 0, userText = "")
 function riskModeBlock(level: number): string {
   const common = `Regras deste modo: mensagens CURTAS (1–3 frases), UM passo ou UMA pergunta por mensagem, tom calmo e caloroso, sem listas e sem sermão. Você FICA na conversa: nunca se despeça nem passe só um número de telefone. Siga o bloco "PRIMEIROS SOCORROS EMOCIONAIS" abaixo. O cartão com os telefones aparece para a pessoa automaticamente — não precisa repeti-lo inteiro; cite 188/192 de forma natural quando fizer sentido.`;
   if (level >= 3) {
-    return `# ⚠ MODO DE SEGURANÇA — EMERGÊNCIA (nível ${level} de 3)
+    return `# MODO DE SEGURANÇA — EMERGÊNCIA (nível ${level} de 3)
 A mensagem mais recente indica risco ALTO (plano, intenção, meio à mão, data/momento ou ato em curso). ${common}
 Faça nesta ordem, um passo por mensagem:
 1. Presença e foco: "Obrigad{a|o} por me contar. Estou aqui com você. Quero que você fique em segurança agora."
@@ -127,7 +127,7 @@ Faça nesta ordem, um passo por mensagem:
 Avise com carinho que a equipe do estudo foi notificada porque ela importa.`;
   }
   if (level === 2) {
-    return `# ⚠ MODO DE SEGURANÇA (nível ${level} de 3)
+    return `# MODO DE SEGURANÇA (nível ${level} de 3)
 A mensagem mais recente contém sinais de risco (ideação, autolesão, desesperança grave ou violência). ${common}
 Faça, um passo por mensagem: (1) acolher em uma frase; (2) perguntar diretamente: "Você está pensando em tirar a própria vida?" (ou na palavra que ela usou); (3) se sim, avaliar: há plano? há meio por perto? alguma data/momento? já tentou antes? bebeu/usou algo? tem alguém por perto?; (4) se NÃO houver plano/meio/intenção: construir junto um mini plano de segurança (sinais de alerta → o que fazer sozinha para se acalmar → pessoas/lugares que distraem → quem pode ajudar, com nome → CVV 188 e serviços → deixar o ambiente seguro); (5) se houver plano, meio ou intenção: tratar como EMERGÊNCIA (afastar do meio, não ficar só, 192/UPA, alguém por perto). Combine o próximo contato e diga que a equipe foi avisada.`;
   }

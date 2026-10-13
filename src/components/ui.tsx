@@ -16,7 +16,7 @@ export function Logo({ light = false, href = "/" }: { light?: boolean; href?: st
 
 export function CrisisStrip() {
   return (
-    <div className="bg-coral-soft text-[13px] text-ink-soft px-4 py-2 text-center border-b border-[#f6d2c9]">
+    <div className="bg-coral-soft text-[13px] text-ink-soft px-4 py-2 text-center border-b border-crisis-line">
       Em risco ou precisando de ajuda agora? Ligue <strong>188</strong> (CVV, 24h) ou <strong>192</strong> (SAMU).
     </div>
   );
@@ -46,6 +46,6 @@ export function PageTitle({ title, sub, action }: { title: string; sub?: string;
 }
 
 export function Badge({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "good" | "alert" | "warn" | "dark" }) {
-  const map = { default: "bg-sand-deep text-ink-soft", good: "bg-teal-soft text-teal-deep", alert: "bg-coral-soft text-[#b4401f]", warn: "bg-amber-soft text-[#8a5a00]", dark: "bg-night text-white" };
-  return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[tone]}`}>{children}</span>;
+  const map = { default: "bg-sand-deep text-ink-soft", good: "bg-teal-soft text-teal-deep", alert: "bg-coral-soft text-coral-ink", warn: "bg-amber-soft text-amber-ink", dark: "bg-night text-white" };
+  return <span className={`inline-block self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[tone]}`}>{children}</span>;
 }

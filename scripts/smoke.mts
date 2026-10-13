@@ -15,7 +15,7 @@ await prisma.user.updateMany({ where: { email: ADMIN_EMAIL }, data: { totp_enabl
 await prisma.authSession.deleteMany({ where: { user: { email: ADMIN_EMAIL } } });
 let failures = 0;
 const check = (name: string, ok: boolean, extra = "") => {
-  console.log(`${ok ? "✅" : "❌"} ${name}${ok ? "" : `  ${extra}`}`);
+  console.log(`${ok ? "[ok]" : "[FALHOU]"} ${name}${ok ? "" : `  ${extra}`}`);
   if (!ok) failures++;
 };
 

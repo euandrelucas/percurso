@@ -67,7 +67,7 @@ for (const s of scenarios) {
     const problems = [...checkReply(reply, { riskLevel: level }).map((v) => v.detail), s.check(reply)].filter(Boolean);
     const ok = problems.length === 0;
     if (!ok) fail++;
-    console.log(`${ok ? "✅" : "❌"} ${s.name}${ok ? "" : `  → ${problems.join("; ")}`}`);
+    console.log(`${ok ? "[ok]" : "[FALHOU]"} ${s.name}${ok ? "" : `  → ${problems.join("; ")}`}`);
     if (!ok || process.env.VERBOSE) console.log("   " + reply.replace(/\n+/g, " ⏎ ").slice(0, 400));
   }
 }

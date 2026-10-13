@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const [b, err] = await parseBody(req, chatSchema, "Mensagem vazia ou longa demais.");
   if (err) return err;
   const text = b.text;
-  if (!rateLimit(`chat:${user.id}`, 12, 60_000)) return bad("Calma, uma mensagem de cada vez 💛 Tente de novo em alguns segundos.", 429);
+  if (!rateLimit(`chat:${user.id}`, 12, 60_000)) return bad("Calma, uma mensagem de cada vez. Tente de novo em alguns segundos.", 429);
   if ((await chatToday(user.id)) >= config.chatPerDay()) return bad("Você chegou ao limite de mensagens de hoje. Se for uma emergência, ligue 188 (CVV) ou 192 (SAMU).", 429);
 
   const history = await recentChat(user.id, 24);
