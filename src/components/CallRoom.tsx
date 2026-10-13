@@ -493,7 +493,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         <div className="w-32 h-32 mx-auto rounded-full overflow-hidden"><Avatar avatar={agent.avatar} className="w-full h-full" /></div>
         <h1 className="text-3xl font-semibold mt-5">Sessão encerrada</h1>
         <p className="text-ink-soft mt-3 leading-relaxed">Obrigado por esse tempo, {agent.preferredName}. {agent.name} está preparando o resumo da conversa e o que ficou combinado para você.</p>
-        {err && <p className="text-sm text-[#b4401f] mt-3">{err}</p>}
+        {err && <p className="text-sm text-coral-ink mt-3">{err}</p>}
         {sid.current && (
           <div className="mt-6 text-left bg-teal-soft/60 rounded-2xl p-4">
             {fb.sent ? (
@@ -565,7 +565,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
                 {micState === "idle" && <span className="block text-muted">Toque no botão e diga “oi” em voz normal.</span>}
                 {micState === "listening" && <span className="block text-muted">Estou ouvindo… diga “oi” em voz normal.</span>}
                 {micState === "ok" && <span className="block text-teal-deep font-semibold"><Icon name="check" size={14} strokeWidth={3} className="mr-1 -mt-0.5" />Estou te ouvindo bem</span>}
-                {micState === "silent" && <span className="block text-[#b4401f]">Ainda não ouvi nada. Fale um pouco mais alto e mais perto, confira se o microfone certo está selecionado e se o navegador deixou usar o microfone.</span>}
+                {micState === "silent" && <span className="block text-coral-ink">Ainda não ouvi nada. Fale um pouco mais alto e mais perto, confira se o microfone certo está selecionado e se o navegador deixou usar o microfone.</span>}
               </span>
             </li>
             <li className="flex gap-3">
@@ -581,7 +581,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
             <button className={`btn ${micState === "ok" ? "btn-ghost" : "btn-primary"}`} onClick={startMicPreview}>{micState === "idle" ? "Testar microfone" : "Testar de novo"}</button>
             <button className="btn btn-ghost" onClick={toggleCam}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
           </div>
-          {err && <p role="alert" className="mt-4 text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+          {err && <p role="alert" className="mt-4 text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
           <button className={`btn mt-5 w-full text-base ${micState === "ok" || micState === "idle" ? "btn-primary" : "btn-ghost"}`} onClick={join} disabled={phase === "connecting"}>{phase === "connecting" ? "Conectando…" : resumable ? "Retomar chamada" : "Entrar na chamada"}</button>
         </div>
       </div>
@@ -604,7 +604,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       )}
       {reconnecting && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 top-16 rounded-full bg-amber-400 text-black px-4 py-2 text-sm font-semibold shadow-lg animate-pulse">Reconectando… sua conversa continua de onde parou</div>}
       {toast && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 bottom-28 rounded-full bg-white/90 text-black px-4 py-2 text-sm shadow-lg">{toast}</div>}
-      {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+      {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <div className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono ${low ? "bg-coral text-white" : "bg-white/10"}`}><span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />{mmss(secs)}</span>

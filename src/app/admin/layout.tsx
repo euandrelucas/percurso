@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <main className="flex-1 min-w-0 p-5 md:p-10 max-w-6xl">
         {!me.totp_enabled && (
           <div className="mb-6 rounded-xl bg-coral-soft border border-[#f1c4b8] px-4 py-3 text-sm text-ink-soft">
-            <strong className="text-ink">Ative a verificação em duas etapas.</strong> Esta conta acessa dados de saúde sensíveis. <a href="/admin/seguranca" className="font-semibold text-[#b4401f] underline">Configurar agora</a>
+            <strong className="text-ink">Ative a verificação em duas etapas.</strong> Esta conta acessa dados de saúde sensíveis. <a href="/admin/seguranca" className="font-semibold text-coral-ink underline">Configurar agora</a>
           </div>
         )}
         {children}

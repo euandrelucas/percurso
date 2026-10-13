@@ -56,7 +56,7 @@ export function AuthForm({ mode, defaultCode = "", initialError = "" }: { mode: 
               <input id="password" name="password" type="password" className="input" required minLength={reg ? 10 : 1} maxLength={200} autoComplete={reg ? "new-password" : "current-password"} />
               {reg && <p className="hint">Mínimo de 10 caracteres, não só números.</p>}
             </div>
-            {err && <p role="alert" className="text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+            {err && <p role="alert" className="text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
             <button className="btn btn-primary w-full" disabled={busy}>{busy ? "Aguarde…" : reg ? "Criar conta" : "Entrar"}</button>
           </form>
         </div>

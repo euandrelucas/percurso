@@ -63,14 +63,14 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
         <AvatarThumb avatar={avatar} size={96} className="w-10 h-10 rounded-full" />
         <div><div className="font-semibold leading-tight">{agentName}</div><div className="text-xs text-white/60">IA de apoio · responde na hora</div></div>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 bg-[#efeae0]" aria-live="polite">
-        <div className="text-center text-[12px] text-muted bg-white/70 rounded-xl px-3 py-2 mx-auto max-w-sm mb-3">Canal para momentos de emergência. Em perigo imediato, ligue <strong>188</strong> (CVV) ou <strong>192</strong> (SAMU).</div>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 bg-chatbg" aria-live="polite">
+        <div className="text-center text-[12px] text-muted bg-paper/70 rounded-xl px-3 py-2 mx-auto max-w-sm mb-3">Canal para momentos de emergência. Em perigo imediato, ligue <strong>188</strong> (CVV) ou <strong>192</strong> (SAMU).</div>
         {msgs.map((m) =>
           m.role === "crisis" ? (
-            <div key={m.id} className="fade-up my-3 rounded-2xl bg-coral-soft border border-[#f6d2c9] p-4 text-sm text-ink-soft whitespace-pre-line">{m.text}</div>
+            <div key={m.id} className="fade-up my-3 rounded-2xl bg-coral-soft border border-crisis-line p-4 text-sm text-ink-soft whitespace-pre-line">{m.text}</div>
           ) : (
             <div key={m.id} className={`fade-up flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-[15px] shadow-sm ${m.role === "user" ? "bg-[#d6f1ec] rounded-br-md" : "bg-paper rounded-bl-md"}`}>
+              <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-[15px] shadow-sm ${m.role === "user" ? "bg-bubble rounded-br-md" : "bg-paper rounded-bl-md"}`}>
                 <span className="whitespace-pre-wrap break-words">{m.text}</span>
                 <span className="block text-right text-[10px] text-muted mt-0.5">{m.at}{m.role === "user" && <Icon name="check-check" size={13} strokeWidth={2.4} className="text-teal ml-1 -mt-0.5" />}</span>
               </div>

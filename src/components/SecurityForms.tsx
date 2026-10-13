@@ -27,7 +27,7 @@ export function TwoFactorLogin({ initialError = "" }: { initialError?: string })
     <form onSubmit={submit} method="post" action="/api/auth/2fa" className="space-y-4">
       <div><label className="label" htmlFor="code">Código do aplicativo autenticador</label>
         <input id="code" name="code" className="input text-center text-2xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus /></div>
-      {err && <p role="alert" className="text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+      {err && <p role="alert" className="text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <button className="btn btn-primary w-full" disabled={busy}>{busy ? "Verificando…" : "Confirmar"}</button>
     </form>
   );
@@ -96,7 +96,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
           </details>
         </div>
       )}
-      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-[#b4401f]"}`}>{msg.t}</p>}
+      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-coral-ink"}`}>{msg.t}</p>}
     </div>
   );
 }
@@ -122,7 +122,7 @@ export function PasswordForm() {
     <form onSubmit={submit} className="grid sm:grid-cols-2 gap-3 max-w-xl">
       <div><label className="label" htmlFor="cur">Senha atual</label><input id="cur" type="password" className="input" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" required /></div>
       <div><label className="label" htmlFor="nxt">Nova senha</label><input id="nxt" type="password" className="input" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" minLength={10} required /></div>
-      <div className="sm:col-span-2 flex items-center gap-3"><button className="btn btn-dark" disabled={busy}>Alterar senha</button>{msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-[#b4401f]"}`}>{msg.t}</span>}</div>
+      <div className="sm:col-span-2 flex items-center gap-3"><button className="btn btn-dark" disabled={busy}>Alterar senha</button>{msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-coral-ink"}`}>{msg.t}</span>}</div>
     </form>
   );
 }

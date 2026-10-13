@@ -84,7 +84,7 @@ export default function Landing() {
             </div>
           ))}
         </div>
-        <div className="mt-8 rounded-2xl bg-coral-soft border border-[#f6d2c9] p-5 text-ink-soft">
+        <div className="mt-8 rounded-2xl bg-coral-soft border border-crisis-line p-5 text-ink-soft">
           <strong className="text-ink">Se você está em crise agora, não espere.</strong> Ligue <strong>188</strong> (CVV, apoio emocional 24 h) ou <strong>192</strong> (SAMU). O Percurso não substitui atendimento de emergência.
         </div>
       </section>

@@ -72,7 +72,7 @@ export function Onboarding({ userName }: { userName: string }) {
           <h1 className="text-4xl font-semibold mt-6">Conheça {form.agent_name}</h1>
           <p className="text-ink-soft mt-3 leading-relaxed">Tudo pronto, {form.preferred_name}. {form.agent_name} já sabe como você gosta de conversar. Sua primeira sessão será uma conversa de apresentação, sem pressa.</p>
           {done.crisis && (
-            <div className="mt-5 rounded-2xl bg-coral-soft border border-[#f6d2c9] p-4 text-left text-sm text-ink-soft">
+            <div className="mt-5 rounded-2xl bg-coral-soft border border-crisis-line p-4 text-left text-sm text-ink-soft">
               <strong className="text-ink">Obrigado por ter sido sincero(a).</strong> Você marcou que anda tendo pensamentos difíceis. A equipe foi avisada e vai acompanhar com cuidado. Se piorar, ligue <strong>188</strong> (CVV, 24h) ou <strong>192</strong> (SAMU), a qualquer hora.
             </div>
           )}
@@ -139,7 +139,7 @@ export function Onboarding({ userName }: { userName: string }) {
         {step === 3 && <PersonalityFields form={form} set={set} />}
         {step === 4 && <AboutFields form={form} set={set} />}
 
-        {err && <p role="alert" className="mt-5 text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
+        {err && <p role="alert" className="mt-5 text-sm text-coral-ink bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
         <div className="mt-8 flex justify-between">
           <button className="btn btn-ghost" disabled={step === 0 || busy} onClick={() => setStep(step - 1)}>Voltar</button>
           {step < STEPS.length - 1 ? (

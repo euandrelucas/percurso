@@ -27,7 +27,7 @@ export function AgentSettings({ initial }: { initial: AgentForm }) {
     <div className="card !p-6 md:!p-8">
       <div role="tablist" className="flex gap-1.5 mb-7 overflow-x-auto">
         {TABS.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${tab === t ? "bg-night text-white" : "bg-sand-deep text-ink-soft"}`}>{t}</button>
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${tab === t ? "bg-active text-white" : "bg-sand-deep text-ink-soft"}`}>{t}</button>
         ))}
       </div>
       {tab === TABS[0] && <IdentityFields form={form} set={set} />}
@@ -35,7 +35,7 @@ export function AgentSettings({ initial }: { initial: AgentForm }) {
       {tab === TABS[2] && <AboutFields form={form} set={set} />}
       <div className="mt-8 flex items-center gap-4">
         <button className="btn btn-primary" onClick={save} disabled={busy || !form.agent_name.trim() || !form.preferred_name.trim()}>{busy ? "Salvando…" : "Salvar alterações"}</button>
-        {msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-[#b4401f]"}`}>{msg.text}</span>}
+        {msg && <span role="status" className={`text-sm ${msg.ok ? "text-teal-deep" : "text-coral-ink"}`}>{msg.text}</span>}
       </div>
     </div>
   );
