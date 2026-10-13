@@ -30,7 +30,8 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const mic = useRef<MediaStream | null>(null);
   const cam = useRef<MediaStream | null>(null);
   const selfVideo = useRef<HTMLVideoElement>(null);
-  const audioEl = useRef<HTMLAudioElement>(null);
+  // Elemento de áudio fora da árvore do React: a faixa remota chega ANTES da tela "live" existir (o <audio> da tela não estaria montado).
+  const audioEl = useRef<HTMLAudioElement | null>(null);
   const [needsSound, setNeedsSound] = useState(false);
   const actx = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -116,6 +117,10 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     dc.current = null;
     mic.current?.getTracks().forEach((t) => t.stop());
     cam.current?.getTracks().forEach((t) => t.stop());
+    if (audioEl.current) {
+      audioEl.current.pause();
+      audioEl.current.srcObject = null;
+    }
     void actx.current?.close().catch(() => {});
     actx.current = null;
     analyser.current = null;
@@ -282,7 +287,9 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       pc.current = conn;
       conn.ontrack = (ev) => {
         const stream = ev.streams[0];
-        if (audioEl.current) {
+        audioEl.current ??= new Audio();
+        {
+          audioEl.current.autoplay = true;
           audioEl.current.srcObject = stream;
           audioEl.current.muted = false;
           audioEl.current.volume = 1;
@@ -434,7 +441,6 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const low = secs <= 300;
   return (
     <div className="fixed inset-0 z-30 bg-[#0b1220] text-white flex flex-col">
-      <audio ref={audioEl} autoPlay playsInline />
       {needsSound && (
         <button
           className="absolute z-40 left-1/2 -translate-x-1/2 top-16 rounded-full bg-amber-400 text-black px-4 py-2 text-sm font-semibold shadow-lg"
