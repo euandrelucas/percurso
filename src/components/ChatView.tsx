@@ -6,7 +6,9 @@ import { Icon } from "./icons";
 
 type Msg = { id: string; role: "user" | "assistant" | "crisis"; text: string; at: string };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const hhmm = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+// Fuso fixo: servidor (UTC) e navegador formatam igual, senão a hidratação do React falha (erro #418) ao abrir o chat.
+const HHMM = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+const hhmm = (d: Date) => (Number.isNaN(d.getTime()) ? "" : HHMM.format(d));
 
 export function ChatView({ agentName, avatar, initial }: { agentName: string; avatar: AvatarT; initial: { id: number; role: string; content: string; at: string }[] }) {
   const [msgs, setMsgs] = useState<Msg[]>(() =>
@@ -40,7 +42,7 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
         return;
       }
       // Balões chegam em sequência, com "digitando…" proporcional ao tamanho: soa como uma pessoa escrevendo.
-      const bubbles: string[] = j.bubbles;
+      const bubbles: string[] = Array.isArray(j.bubbles) ? j.bubbles.filter((b: unknown): b is string => typeof b === "string" && b.trim().length > 0) : [];
       for (let i = 0; i < bubbles.length; i++) {
         if (i > 0) setTyping(true);
         await sleep(Math.min(2200, 500 + bubbles[i].length * 18));
