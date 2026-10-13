@@ -13,6 +13,19 @@ docker compose up -d
 
 Isso sobe **Postgres 16**, aplica as migrações (`migrate`), o **app** (Next.js standalone, usuário não‑root, FS somente leitura) e o **Caddy** (HTTPS automático via Let's Encrypt quando há domínio). Aponte o DNS do domínio para o servidor e libere as portas 80/443. Na primeira vez, o admin é criado com `ADMIN_EMAIL`/`ADMIN_PASSWORD`; ao entrar, o app pede para ativar **2FA** (app autenticador).
 
+### Já tem nginx (ou outro proxy) na frente?
+
+Se o seu proxy já faz o HTTPS, o Caddy do compose precisa servir **HTTP puro**; senão ele redireciona para HTTPS e dá **"redirecionamento em excesso"** (loop). No `.env`:
+
+```env
+SITE_ADDRESS=http://percurso.seudominio.com   # com "http://" o Caddy não força HTTPS
+APP_URL=https://percurso.seudominio.com       # o endereço público (cookies seguros e CSRF dependem dele)
+HTTP_PORT=88
+BIND_ADDR=127.0.0.1                           # não expõe a porta 88 na internet
+```
+
+e no nginx (`proxy_pass http://127.0.0.1:88;`), além do `Host` e `X-Forwarded-Proto`, use **`proxy_set_header X-Forwarded-For $remote_addr;`** (e não `$proxy_add_x_forwarded_for`, que deixaria o cliente forjar o IP e escapar do rate limit). Depois: `docker compose up -d`.
+
 - Logs: `docker compose logs -f app` · Backup do banco: `./scripts/backup.sh` · Atualizar: `git pull && docker compose up -d --build`
 - ⚠️ **Guarde o `ENCRYPTION_KEY`** (no `.env`, ou no volume `appdata` se foi auto‑gerada): sem ela as transcrições/memória cifradas não podem ser lidas. Faça backup do banco **e** da chave, em locais separados.
 - Microfone e câmera só funcionam em **HTTPS** (ou `localhost`) — por isso o Caddy com domínio.
