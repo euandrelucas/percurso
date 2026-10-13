@@ -200,7 +200,8 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           break;
         case "conversation.item.input_audio_transcription.completed": {
           const t = String(e.transcript ?? "").trim();
-          if (t) {
+          // Descarta transcrições típicas de alucinação em ruído/silêncio (só pontuação, créditos de legenda etc.).
+          if (t && !/^[\s.,!?…\-–]*$/.test(t) && !/amara\.org|legendas? (pela|por|de)|inscreva-se|obrigad[oa] por assistir|www\./i.test(t)) {
             setCaption({ who: "me", text: t });
             void saveTurn("user", t);
           }
