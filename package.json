@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
     "postinstall": "prisma generate",
-    "smoke": "tsx --env-file=.env.local scripts/smoke.mts"
+    "smoke": "tsx --env-file=.env.local scripts/smoke.mts",
+    "check:voices": "tsx --env-file=.env.local scripts/check-voices.mts"
   },
   "engines": {
     "node": ">=22.13"

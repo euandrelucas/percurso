@@ -8,7 +8,7 @@ export const config = {
   mock: () => process.env.MOCK_AI === "1" || !process.env.OPENAI_API_KEY,
   chatModel: () => process.env.OPENAI_CHAT_MODEL || "gpt-4.1",
   fastModel: () => process.env.OPENAI_FAST_MODEL || "gpt-4.1-mini",
-  realtimeModel: () => process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
+  realtimeModel: () => process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini",
   sessionMaxMinutes: () => num(process.env.SESSION_MAX_MINUTES, 60),
   callsPerDay: () => num(process.env.CALLS_PER_DAY, 1),
   chatPerDay: () => num(process.env.CHAT_MESSAGES_PER_DAY, 80),

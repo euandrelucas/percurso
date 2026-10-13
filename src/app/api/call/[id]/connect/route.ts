@@ -5,6 +5,7 @@ import { realtimeConnect } from "@/lib/openai";
 import { buildVoiceInstructions, REALTIME_TOOLS } from "@/lib/prompts";
 import { getAgent, getSession, sessionMessages } from "@/lib/store";
 import { secondsLeft } from "@/lib/sessions";
+import { audit } from "@/lib/prisma";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await apiUser("patient");
@@ -27,25 +28,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     instructions += `\n\n# RETOMADA DA SESSÃO\nA conexão caiu e voltou no meio da sessão. NÃO se apresente de novo e NÃO recomece o roteiro. Diga algo breve como "Pronto, voltei — a conexão oscilou. Estávamos falando de…" e continue de onde parou. Restam cerca de ${Math.round(secondsLeft(s) / 60)} minutos. Últimas falas antes da queda:\n${tail}`;
   }
 
+  const FALLBACK_VOICE = "alloy";
   const speed = agent.pace === "calmo" ? 0.95 : agent.pace === "dinamico" ? 1.05 : 1.0;
   const vad =
     process.env.REALTIME_VAD === "semantic"
       ? { type: "semantic_vad", eagerness: "medium", create_response: true, interrupt_response: true }
       : { type: "server_vad", threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true, interrupt_response: true };
 
-  try {
-    const answer = await realtimeConnect(offer, {
+  const sessionFor = (voice: string) => ({
       type: "realtime",
       model: config.realtimeModel(),
       instructions,
       output_modalities: ["audio"],
       audio: {
         input: { transcription: { model: "gpt-4o-transcribe", language: "pt" }, noise_reduction: { type: "near_field" }, turn_detection: vad },
-        output: { voice: agent.voice, speed },
+        output: { voice, speed },
       },
       tools: REALTIME_TOOLS,
       tool_choice: "auto",
-    });
+  });
+
+  const connect = (voice: string) => realtimeConnect(offer, sessionFor(voice));
+  try {
+    let answer: string;
+    try {
+      answer = await connect(agent.voice);
+    } catch (e) {
+      // O modelo configurado pode não aceitar a voz escolhida (ex.: vozes exclusivas de outro modelo): cai para uma voz universal.
+      if (!/voice/i.test(String(e)) || agent.voice === FALLBACK_VOICE) throw e;
+      await audit("system", "voice.fallback", user.id, { wanted: agent.voice, used: FALLBACK_VOICE, model: config.realtimeModel() });
+      answer = await connect(FALLBACK_VOICE);
+    }
     return new Response(answer, { headers: { "Content-Type": "application/sdp", "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[realtime]", e);

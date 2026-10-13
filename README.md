@@ -47,7 +47,7 @@ npm run eval:prompts              # cenários difíceis contra o modelo REAL (pr
 
 ## Voz
 
-Usa a API **OpenAI Realtime** (`gpt-realtime`, modelo fala‑para‑fala): a voz é gerada diretamente pelo modelo, sem TTS separado. As vozes disponíveis são as do próprio modelo (marin, cedar, coral, sage, ash, verse); a transcrição para registro usa `gpt-4o-transcribe`. O navegador abre o WebRTC **passando pelo nosso servidor** (`/api/call/[id]/connect`): a chave e as instruções ficam no servidor.
+Usa a API **OpenAI Realtime** (padrão `gpt-realtime-mini`, mais barato; troque por `gpt-realtime` em `OPENAI_REALTIME_MODEL` se quiser mais qualidade; rode `npm run check:voices` para ver quais vozes o modelo aceita): a voz é gerada diretamente pelo modelo, sem TTS separado. As vozes disponíveis são as do próprio modelo (marin, cedar, coral, sage, ash, verse); a transcrição para registro usa `gpt-4o-transcribe`. O navegador abre o WebRTC **passando pelo nosso servidor** (`/api/call/[id]/connect`): a chave e as instruções ficam no servidor.
 
 ## Dossiê do paciente (PDF para o estudo)
 
