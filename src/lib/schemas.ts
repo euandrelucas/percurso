@@ -25,13 +25,6 @@ export const turnSchema = z.object({ role: z.enum(["user", "assistant"]), text: 
 export const riskSchema = z.object({ nivel: z.coerce.number().int().min(1).max(3), motivo: text(400).default("") });
 export const endSchema = z.object({ reason: z.enum(["agente", "paciente", "tempo", "falha_tecnica"]).default("paciente") });
 export const feedbackSchema = z.object({ rating: z.number().int().min(1).max(3), note: z.string().trim().max(600).optional().default("") });
-export const brainSchema = z.object({
-  kind: z.enum(["turn", "open", "time", "signal"]),
-  text: z.string().trim().max(4000).optional(),
-  minutes: z.number().min(0).max(120).optional(),
-  signal: z.enum(["nao_ajudando", "transcricao_errada"]).optional(),
-  presses: z.number().int().min(1).max(20).optional(),
-});
 export const demoChatSchema = z.object({ text: z.string().trim().min(1).max(2000) });
 
 export const inviteCreateSchema = z.object({ label: text(80).optional(), count: z.coerce.number().int().min(1).max(20).default(1), expiresInDays: z.coerce.number().int().min(0).max(365).optional() });

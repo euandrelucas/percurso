@@ -15,7 +15,7 @@ export async function POST() {
   await reapStale(user.id);
   const active = await activeSession(user.id);
   if (active && secondsLeft(active) > 30) {
-    return json({ sessionId: active.id, resumed: true, secondsLeft: secondsLeft(active), kind: active.kind, mock: config.mock(), brain: !config.mock() && config.voiceBrain() });
+    return json({ sessionId: active.id, resumed: true, secondsLeft: secondsLeft(active), kind: active.kind, mock: config.mock() });
   }
 
   const { available, limit } = await callAvailability(user);
@@ -25,5 +25,5 @@ export async function POST() {
   const max = config.sessionMaxMinutes();
   const s = await prisma.therapySession.create({ data: { user_id: user.id, number: await nextSessionNumber(user.id), kind, max_minutes: max, prompt_version: PROMPT_VERSION } });
   await audit("patient", "session.started", user.id, { id: s.id, kind });
-  return json({ sessionId: s.id, resumed: false, secondsLeft: max * 60, kind, mock: config.mock(), brain: !config.mock() && config.voiceBrain() });
+  return json({ sessionId: s.id, resumed: false, secondsLeft: max * 60, kind, mock: config.mock() });
 }

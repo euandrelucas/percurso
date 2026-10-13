@@ -28,8 +28,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     instructions += `\n\n# RETOMADA DA SESSÃO\nA conexão caiu e voltou no meio da sessão. NÃO se apresente de novo e NÃO recomece o roteiro. Diga algo breve como "Pronto, voltei — a conexão oscilou. Estávamos falando de…" e continue de onde parou. Restam cerca de ${Math.round(secondsLeft(s) / 60)} minutos. Últimas falas antes da queda:\n${tail}`;
   }
 
-  // Modo "dois cérebros": a voz só lê o texto que o /brain escreve. Sem resposta automática e sem ferramentas.
-  const brain = config.voiceBrain();
   const FALLBACK_VOICE = "alloy";
   const speed = agent.pace === "calmo" ? 0.95 : agent.pace === "dinamico" ? 1.05 : 1.0;
   // Quem desabafa pausa para pensar/respirar: 700 ms de silêncio cortava a pessoa. Padrão 1300 ms (ajustável por REALTIME_SILENCE_MS);
@@ -41,8 +39,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const eagerness = ["low", "medium", "high", "auto"].includes(process.env.REALTIME_EAGERNESS ?? "") ? process.env.REALTIME_EAGERNESS : "low";
   const vad =
     process.env.REALTIME_VAD === "semantic"
-      ? { type: "semantic_vad", eagerness, create_response: !brain, interrupt_response: true }
-      : { type: "server_vad", threshold: vadThreshold, prefix_padding_ms: 300, silence_duration_ms: silenceMs, create_response: !brain, interrupt_response: true };
+      ? { type: "semantic_vad", eagerness, create_response: true, interrupt_response: true }
+      : { type: "server_vad", threshold: vadThreshold, prefix_padding_ms: 300, silence_duration_ms: silenceMs, create_response: true, interrupt_response: true };
 
   const sessionFor = (voice: string) => ({
       type: "realtime",
@@ -58,7 +56,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
         output: { voice, speed },
       },
-      ...(brain ? {} : { tools: REALTIME_TOOLS, tool_choice: "auto" }),
+      tools: REALTIME_TOOLS,
+      tool_choice: "auto",
   });
 
   const connect = (voice: string) => realtimeConnect(offer, sessionFor(voice));
