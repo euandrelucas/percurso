@@ -4,7 +4,7 @@
  *  - Só guarda: arquivos estáticos versionados (/_next/static), ícones e a página offline.
  *  - Navegações vão sempre à rede; se estiver offline, mostra /offline.html.
  */
-const VERSION = "percurso-v1";
+const VERSION = "percurso-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"];
 
@@ -47,4 +47,19 @@ self.addEventListener("fetch", (e) => {
       ),
     );
   }
+});
+
+// Lembretes (push). O texto vem neutro do servidor: nada de dados de saúde na tela bloqueada.
+self.addEventListener("push", (e) => {
+  let d = { title: "Percurso", body: "Quando quiser, é só abrir.", url: "/app" };
+  try { d = { ...d, ...e.data.json() }; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(d.title, { body: d.body, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: "percurso-lembrete", data: { url: d.url } }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/app";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    for (const c of cs) if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

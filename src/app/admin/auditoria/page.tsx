@@ -20,7 +20,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<{ 
     <>
       <PageTitle title="Trilha de auditoria" sub="Registro append-only de tudo que acontece: logins, acessos de admin a dados de pacientes, alertas, relatórios e mudanças de conta." />
       <div className="flex flex-wrap gap-2 mb-4">
-        {[["", "Tudo"], ["admin", "Admin"], ["patient", "Pacientes"], ["system", "Sistema"]].map(([v, l]) => <Link key={v} href={q(1, v)} className={`chip ${(sp.a ?? "") === v ? "!bg-ink !text-white !border-ink" : ""}`}>{l}</Link>)}
+        {[["", "Tudo"], ["admin", "Admin"], ["patient", "Pacientes"], ["system", "Sistema"]].map(([v, l]) => <Link key={v} href={q(1, v)} className={`chip ${(sp.a ?? "") === v ? "!bg-night !text-white !border-ink" : ""}`}>{l}</Link>)}
       </div>
       <div className="card !p-0 overflow-x-auto">
         <table className="w-full text-sm">

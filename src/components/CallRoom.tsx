@@ -3,11 +3,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
-import { REMINDER_VOICE, timeCue } from "@/lib/prompts/phases";
+import { HELP_SIGNAL_CUE, REMINDER_VOICE, TRANSCRIPT_WRONG_CUE, timeCue } from "@/lib/prompts/phases";
 
 type Props = { agent: { name: string; avatar: AvatarT; preferredName: string }; first: boolean; maxMinutes: number; resumable: boolean };
 type Phase = "lobby" | "connecting" | "live" | "ended" | "error";
 
+const SAD = /\b(triste|tristeza|mal|chor(o|ar|ei|ando)|medo|ansios[oa]|ansiedade|sozinh[oa]|cansad[oa]|culpa|angusti|sofr(o|er|endo|imento)|perd(i|er|eu)|saudade|n[ãa]o consigo|desanim|vazi[oa]|deprimid|p[âa]nico|magoad|traí|trai[çc])/i;
+const HAPPY = /\b(feliz|[óo]timo|consegui|orgulh|alegr|melhor|passei|aprovad|animad|tranquil[oa]|aliviad|gostei|legal|maravilh)/i;
+const moodOf = (t: string): "neutral" | "warm" | "concerned" => (SAD.test(t) ? "concerned" : HAPPY.test(t) ? "warm" : "neutral");
 const mmss = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
 const post = (url: string, body?: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
@@ -33,6 +36,14 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   // Elemento de áudio fora da árvore do React: a faixa remota chega ANTES da tela "live" existir (o <audio> da tela não estaria montado).
   const audioEl = useRef<HTMLAudioElement | null>(null);
   const [needsSound, setNeedsSound] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [toast, setToast] = useState("");
+  const [micState, setMicState] = useState<"idle" | "listening" | "ok" | "silent">("idle");
+  const [faceMood, setFaceMood] = useState<"neutral" | "warm" | "concerned">("neutral");
+  const [fixable, setFixable] = useState(false); // legenda da última fala pode ser marcada como errada
+  const reconnectingRef = useRef(false);
+  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [fb, setFb] = useState<{ rating: number | null; note: string; sent: boolean; busy: boolean }>({ rating: null, note: "", sent: false, busy: false });
   const actx = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
   const levelBuf = useRef<Uint8Array<ArrayBuffer> | null>(null);
@@ -75,12 +86,19 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       an.fftSize = 512;
       ctx.createMediaStreamSource(s).connect(an);
       const buf = new Uint8Array(an.fftSize);
+      setMicState("listening");
+      let loud = 0;
+      const t0 = Date.now();
       const loop = () => {
         if (phaseRef.current !== "lobby") return;
         an.getByteTimeDomainData(buf);
         let sum = 0;
         for (const b of buf) sum += ((b - 128) / 128) ** 2;
-        setMicLevel(Math.min(1, Math.sqrt(sum / buf.length) * 6));
+        const lvl = Math.min(1, Math.sqrt(sum / buf.length) * 6);
+        setMicLevel(lvl);
+        loud = lvl > 0.12 ? loud + 1 : Math.max(0, loud - 1);
+        if (loud > 8) setMicState("ok");
+        else if (Date.now() - t0 > 6000) setMicState((m) => (m === "ok" ? m : "silent"));
         requestAnimationFrame(loop);
       };
       loop();
@@ -139,6 +157,27 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     },
     [sendEvent],
   );
+
+  const flash = useCallback((t: string) => {
+    setToast(t);
+    setTimeout(() => setToast(""), 4500);
+  }, []);
+  const notHelping = useCallback(() => {
+    if (!sid.current || ending.current) return;
+    void post(`/api/call/${sid.current}/signal`, { kind: "nao_ajudando" });
+    injectSystem(HELP_SIGNAL_CUE, true);
+    setThinking(true);
+    flash("Entendi. Vou pedir para tentar de outro jeito.");
+  }, [injectSystem, flash]);
+  const wrongCaption = useCallback(() => {
+    if (!sid.current || ending.current) return;
+    void post(`/api/call/${sid.current}/signal`, { kind: "transcricao_errada" });
+    sendEvent({ type: "response.cancel" });
+    injectSystem(TRANSCRIPT_WRONG_CUE, true);
+    setFixable(false);
+    setCaption(null);
+    flash("Ok, vou pedir para repetir.");
+  }, [injectSystem, sendEvent, flash]);
 
   const injected = useRef<Set<string>>(new Set());
   const saveTurn = useCallback(async (role: "user" | "assistant", text: string) => {
@@ -203,12 +242,21 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           // Descarta transcrições típicas de alucinação em ruído/silêncio (só pontuação, créditos de legenda etc.).
           if (t && !/^[\s.,!?…\-–]*$/.test(t) && !/amara\.org|legendas? (pela|por|de)|inscreva-se|obrigad[oa] por assistir|www\./i.test(t)) {
             setCaption({ who: "me", text: t });
+            setFixable(true);
+            // O rosto reage ao que a pessoa acabou de dizer (por ~25 s): preocupado em assunto pesado, sorriso em boa notícia.
+            const m = moodOf(t);
+            if (m !== "neutral") {
+              setFaceMood(m);
+              if (moodTimer.current) clearTimeout(moodTimer.current);
+              moodTimer.current = setTimeout(() => setFaceMood("neutral"), 25000);
+            }
             void saveTurn("user", t);
           }
           break;
         }
         case "response.output_audio_transcript.delta":
         case "response.audio_transcript.delta":
+          setFixable(false);
           setThinking(false);
           aiDraft.current += String(e.delta ?? "");
           setCaption({ who: "ai", text: aiDraft.current });
@@ -263,6 +311,89 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     [finishAfterGoodbye, saveTurn, sendEvent],
   );
 
+  // --- Conexão em tempo real (também usada para reconectar sem perder a sessão) ---------------------------------
+  async function openRealtime(sessionId: number) {
+    mic.current ??= await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const conn = new RTCPeerConnection();
+    pc.current = conn;
+    conn.ontrack = (ev) => {
+      const stream = ev.streams[0];
+      audioEl.current ??= new Audio();
+      audioEl.current.autoplay = true;
+      audioEl.current.srcObject = stream;
+      audioEl.current.muted = false;
+      audioEl.current.volume = 1;
+      // Alguns navegadores (iOS/Safari, Chrome com política restrita) bloqueiam o autoplay: pede um toque para liberar o som.
+      audioEl.current.play().catch(() => setNeedsSound(true));
+      void actx.current?.close().catch(() => {});
+      const ctx = new AudioContext();
+      void ctx.resume().catch(() => {});
+      actx.current = ctx;
+      const an = ctx.createAnalyser();
+      an.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(an); // só mede; o som sai pelo <audio>
+      analyser.current = an;
+      levelBuf.current = new Uint8Array(an.fftSize);
+    };
+    conn.onconnectionstatechange = () => {
+      if (pc.current !== conn || ending.current) return;
+      if (conn.connectionState === "failed") void reconnect();
+      else if (conn.connectionState === "disconnected") setTimeout(() => pc.current === conn && conn.connectionState === "disconnected" && void reconnect(), 4000);
+    };
+    mic.current.getAudioTracks().forEach((t) => conn.addTrack(t, mic.current!));
+    const ch = conn.createDataChannel("oai-events");
+    dc.current = ch;
+    ch.onmessage = (m) => onEvent(String(m.data));
+    ch.onclose = () => {
+      if (pc.current === conn && !ending.current) void reconnect();
+    };
+    ch.onopen = () => {
+      setReconnecting(false);
+      setPhase("live");
+      setThinking(true);
+      sendEvent({ type: "response.create" }); // o agente fala primeiro (ou retoma: "pronto, voltei")
+    };
+    const offer = await conn.createOffer();
+    await conn.setLocalDescription(offer);
+    const res = await fetch(`/api/call/${sessionId}/connect`, { method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Falha ao conectar.");
+    await conn.setRemoteDescription({ type: "answer", sdp: await res.text() });
+  }
+
+  /** Queda de conexão no meio da conversa: tenta voltar sozinho (até 4 vezes) e a IA retoma de onde parou. */
+  async function reconnect() {
+    if (reconnectingRef.current || ending.current || !sid.current) return;
+    reconnectingRef.current = true;
+    setReconnecting(true);
+    void post(`/api/call/${sid.current}/signal`, { kind: "reconexao" });
+    for (let i = 1; i <= 4 && !ending.current; i++) {
+      try {
+        const old = pc.current;
+        pc.current = null;
+        dc.current = null;
+        old?.close();
+        await new Promise((r) => setTimeout(r, 700 * i));
+        if (ending.current) break;
+        await openRealtime(sid.current);
+        const isOpen = () => dc.current?.readyState === "open";
+        for (let w = 0; w < 40 && !isOpen(); w++) await new Promise((r) => setTimeout(r, 200));
+        if (isOpen()) {
+          reconnectingRef.current = false;
+          setReconnecting(false);
+          return;
+        }
+      } catch {
+        /* tenta de novo */
+      }
+    }
+    reconnectingRef.current = false;
+    setReconnecting(false);
+    if (!ending.current) {
+      setErr("A conexão não voltou. Você pode entrar de novo: a conversa continua de onde parou.");
+      void finish("falha_tecnica");
+    }
+  }
+
   // --- Entrar na chamada --------------------------------------------------------------------------------------
   async function join() {
     setErr("");
@@ -282,50 +413,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         speakDemo(`Oi, ${agent.preferredName}. Que bom te ver. Como você está chegando hoje?`);
         return;
       }
-
-      mic.current ??= await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      const conn = new RTCPeerConnection();
-      pc.current = conn;
-      conn.ontrack = (ev) => {
-        const stream = ev.streams[0];
-        audioEl.current ??= new Audio();
-        {
-          audioEl.current.autoplay = true;
-          audioEl.current.srcObject = stream;
-          audioEl.current.muted = false;
-          audioEl.current.volume = 1;
-          // Alguns navegadores (iOS/Safari, Chrome com política restrita) bloqueiam o autoplay: pede um toque para liberar o som.
-          audioEl.current.play().catch(() => setNeedsSound(true));
-        }
-        const ctx = new AudioContext();
-        void ctx.resume().catch(() => {});
-        actx.current = ctx;
-        const an = ctx.createAnalyser();
-        an.fftSize = 512;
-        ctx.createMediaStreamSource(stream).connect(an); // só mede; o som sai pelo <audio>
-        analyser.current = an;
-        levelBuf.current = new Uint8Array(an.fftSize);
-      };
-      conn.onconnectionstatechange = () => {
-        if (conn.connectionState === "failed" && !ending.current) {
-          setErr("A conexão caiu. Você pode entrar de novo: a conversa continua de onde parou.");
-          void finish("falha_tecnica");
-        }
-      };
-      mic.current.getAudioTracks().forEach((t) => conn.addTrack(t, mic.current!));
-      const ch = conn.createDataChannel("oai-events");
-      dc.current = ch;
-      ch.onmessage = (m) => onEvent(String(m.data));
-      ch.onopen = () => {
-        setPhase("live");
-        setThinking(true);
-        sendEvent({ type: "response.create" }); // o agente fala primeiro
-      };
-      const offer = await conn.createOffer();
-      await conn.setLocalDescription(offer);
-      const res = await fetch(`/api/call/${j.sessionId}/connect`, { method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Falha ao conectar.");
-      await conn.setRemoteDescription({ type: "answer", sdp: await res.text() });
+      await openRealtime(j.sessionId);
     } catch (e) {
       cleanup();
       setErr(e instanceof Error ? e.message : "Erro inesperado.");
@@ -405,6 +493,47 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         <h1 className="text-3xl font-semibold mt-5">Sessão encerrada</h1>
         <p className="text-ink-soft mt-3 leading-relaxed">Obrigado por esse tempo, {agent.preferredName}. {agent.name} está preparando o resumo da conversa e o que ficou combinado para você.</p>
         {err && <p className="text-sm text-[#b4401f] mt-3">{err}</p>}
+        {sid.current && (
+          <div className="mt-6 text-left bg-teal-soft/60 rounded-2xl p-4">
+            {fb.sent ? (
+              <p className="text-center text-sm text-ink-soft">Obrigado por contar. Isso ajuda {agent.name} a cuidar melhor das próximas conversas. 💛</p>
+            ) : (
+              <>
+                <p className="font-semibold text-center">Como foi essa conversa pra você?</p>
+                <div className="grid grid-cols-3 gap-2 mt-3" role="group" aria-label="Avaliação da conversa">
+                  {[{ r: 3, e: "😊", t: "Me ajudou" }, { r: 2, e: "😐", t: "Mais ou menos" }, { r: 1, e: "😕", t: "Não ajudou" }].map((o) => (
+                    <button key={o.r} type="button" style={{ textAlign: "center" }} className="choice !px-2 !py-3" aria-pressed={fb.rating === o.r} onClick={() => setFb((f) => ({ ...f, rating: o.r }))}>
+                      <div className="text-2xl">{o.e}</div>
+                      <div className="text-xs mt-1">{o.t}</div>
+                    </button>
+                  ))}
+                </div>
+                {fb.rating != null && (
+                  <>
+                    <label className="label mt-3" htmlFor="fb_note">{fb.rating === 1 ? "O que poderia ter sido diferente?" : "Quer contar mais? (opcional)"}</label>
+                    <textarea id="fb_note" className="input" rows={2} maxLength={600} value={fb.note} onChange={(e) => setFb((f) => ({ ...f, note: e.target.value }))} placeholder="Escreva do seu jeito. Só a coordenação do estudo vê isso." />
+                    <button
+                      type="button"
+                      className="btn btn-primary w-full mt-3"
+                      disabled={fb.busy}
+                      onClick={async () => {
+                        setFb((f) => ({ ...f, busy: true }));
+                        try {
+                          const r = await post(`/api/call/${sid.current}/feedback`, { rating: fb.rating, note: fb.note });
+                          if (r.ok) setFb((f) => ({ ...f, sent: true }));
+                        } finally {
+                          setFb((f) => ({ ...f, busy: false }));
+                        }
+                      }}
+                    >
+                      {fb.busy ? "Enviando…" : "Enviar"}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
         <div className="mt-7 flex justify-center gap-3"><Link href="/app/sessoes" className="btn btn-primary">Ver minhas sessões</Link><Link href="/app" className="btn btn-ghost">Voltar ao início</Link></div>
         <p className="text-xs text-muted mt-6">Se precisar de apoio agora: 188 (CVV, 24h) · 192 (SAMU)</p>
       </div>
@@ -414,7 +543,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   if (phase === "lobby" || phase === "connecting" || phase === "error") {
     return (
       <div className="max-w-4xl mx-auto grid md:grid-cols-[1.3fr_1fr] gap-6 items-center">
-        <div className="relative rounded-3xl overflow-hidden bg-ink aspect-video shadow-lg">
+        <div className="relative rounded-3xl overflow-hidden bg-night aspect-video shadow-lg">
           {camOn ? <video ref={selfVideo} autoPlay muted playsInline className="w-full h-full object-cover [transform:scaleX(-1)]" /> : <div className="w-full h-full grid place-items-center text-white/70"><div className="text-center"><div className="text-5xl mb-2">🎙️</div><p className="text-sm">Câmera desligada</p></div></div>}
           <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 text-white text-xs">
             <div className="h-1.5 flex-1 rounded-full bg-white/20 overflow-hidden"><div className="h-full bg-teal transition-[width] duration-75" style={{ width: `${micLevel * 100}%` }} /></div><span>teste de microfone</span>
@@ -423,17 +552,36 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         <div>
           <h1 className="text-3xl font-semibold">{resumable ? "Voltar para a chamada" : first ? "Pronto para a primeira conversa?" : "Pronto para entrar?"}</h1>
           <p className="text-ink-soft mt-2">{agent.name} vai estar do outro lado. A sessão dura até {maxMinutes} minutos e é encerrada com calma ao final.</p>
-          <ul className="mt-4 text-sm text-muted space-y-1.5">
-            <li>• Use fones de ouvido, se puder, e escolha um lugar tranquilo.</li>
-            <li>• Sua câmera é opcional e o vídeo <strong>nunca é enviado nem gravado</strong>; só o áudio é usado na conversa.</li>
+          <ol className="mt-4 space-y-3 text-sm">
+            <li className="flex gap-3">
+              <span className="mt-0.5 w-6 h-6 rounded-full bg-teal-soft text-teal-deep grid place-items-center text-xs font-bold shrink-0">1</span>
+              <span><strong>Fones de ouvido</strong>, se tiver: evitam eco e deixam a conversa mais fiel. Escolha um lugar tranquilo.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className={`mt-0.5 w-6 h-6 rounded-full grid place-items-center text-xs font-bold shrink-0 ${micState === "ok" ? "bg-teal text-white" : "bg-teal-soft text-teal-deep"}`}>{micState === "ok" ? "✓" : "2"}</span>
+              <span className="flex-1">
+                <strong>Teste o microfone</strong>
+                {micState === "idle" && <span className="block text-muted">Toque no botão e diga “oi” em voz normal.</span>}
+                {micState === "listening" && <span className="block text-muted">Estou ouvindo… diga “oi” em voz normal.</span>}
+                {micState === "ok" && <span className="block text-teal-deep font-semibold">Estou te ouvindo bem ✓</span>}
+                {micState === "silent" && <span className="block text-[#b4401f]">Ainda não ouvi nada. Fale um pouco mais alto e mais perto, confira se o microfone certo está selecionado e se o navegador deixou usar o microfone.</span>}
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-0.5 w-6 h-6 rounded-full bg-teal-soft text-teal-deep grid place-items-center text-xs font-bold shrink-0">3</span>
+              <span><strong>{agent.name} fala primeiro</strong>. Pode levar 2 ou 3 segundos para a voz começar, é normal. Depois é só conversar, como numa ligação.</span>
+            </li>
+          </ol>
+          <ul className="mt-4 text-xs text-muted space-y-1">
+            <li>• Sua câmera é opcional; o vídeo <strong>nunca é enviado nem gravado</strong>. Só o áudio é usado.</li>
             <li>• Você está falando com uma IA, com a equipe do estudo acompanhando.</li>
           </ul>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button className="btn btn-ghost" onClick={startMicPreview}>Testar microfone</button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className={`btn ${micState === "ok" ? "btn-ghost" : "btn-primary"}`} onClick={startMicPreview}>{micState === "idle" ? "Testar microfone" : "Testar de novo"}</button>
             <button className="btn btn-ghost" onClick={toggleCam}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
           </div>
           {err && <p role="alert" className="mt-4 text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
-          <button className="btn btn-primary mt-5 w-full text-base" onClick={join} disabled={phase === "connecting"}>{phase === "connecting" ? "Conectando…" : resumable ? "Retomar chamada" : "Entrar na chamada"}</button>
+          <button className={`btn mt-5 w-full text-base ${micState === "ok" || micState === "idle" ? "btn-primary" : "btn-ghost"}`} onClick={join} disabled={phase === "connecting"}>{phase === "connecting" ? "Conectando…" : resumable ? "Retomar chamada" : "Entrar na chamada"}</button>
         </div>
       </div>
     );
@@ -453,6 +601,8 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           🔈 Toque para ativar o som
         </button>
       )}
+      {reconnecting && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 top-16 rounded-full bg-amber-400 text-black px-4 py-2 text-sm font-semibold shadow-lg animate-pulse">Reconectando… sua conversa continua de onde parou</div>}
+      {toast && <div role="status" className="absolute z-40 left-1/2 -translate-x-1/2 bottom-28 rounded-full bg-white/90 text-black px-4 py-2 text-sm shadow-lg">{toast}</div>}
       {err && phase === "live" && <p role="alert" className="absolute z-40 left-1/2 -translate-x-1/2 top-28 max-w-md w-[90%] text-sm text-[#b4401f] bg-coral-soft rounded-xl px-3 py-2">{err}</p>}
       <div className="flex items-center justify-between px-4 py-3 text-sm">
         <div className="flex items-center gap-3">
@@ -464,12 +614,15 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
 
       <div className="flex-1 relative min-h-0 px-3 pb-3">
         <div className="h-full w-full max-w-5xl mx-auto relative rounded-3xl overflow-hidden bg-black/30 ring-1 ring-white/10">
-          <Avatar avatar={agent.avatar} getLevel={getLevel} thinking={thinking} className="w-full h-full" />
+          <Avatar avatar={agent.avatar} getLevel={getLevel} thinking={thinking} mood={faceMood} className="w-full h-full" />
           <div className="absolute left-4 bottom-4 text-sm bg-black/50 rounded-lg px-2.5 py-1">{agent.name} · IA</div>
 
           {captions && caption && (
             <div className="absolute left-1/2 -translate-x-1/2 bottom-28 sm:bottom-16 max-w-[min(92%,640px)] text-center">
               <p className="inline-block rounded-xl bg-black/70 px-4 py-2 text-[15px] leading-snug">{caption.who === "me" && <span className="text-teal opacity-90">Você: </span>}{caption.text}</p>
+              {caption.who === "me" && fixable && !demo && (
+                <button className="block mx-auto mt-1 text-xs underline text-white/80 hover:text-white" onClick={wrongCaption}>Não foi isso que eu disse</button>
+              )}
             </div>
           )}
 
@@ -500,6 +653,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       <div className="flex items-center justify-center gap-3 pb-6 pt-2">
         <button onClick={toggleMute} aria-pressed={muted} aria-label={muted ? "Ativar microfone" : "Silenciar microfone"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${muted ? "bg-red-600" : "bg-white/15 hover:bg-white/25"}`}>{muted ? "🔇" : "🎙️"}</button>
         <button onClick={toggleCam} aria-pressed={camOn} aria-label={camOn ? "Desligar câmera" : "Ligar câmera"} className={`w-12 h-12 rounded-full grid place-items-center text-lg ${camOn ? "bg-white/25" : "bg-white/10 hover:bg-white/20"}`}>{camOn ? "📹" : "🚫"}</button>
+        {!demo && <button onClick={notHelping} aria-label="Não está ajudando: pedir para mudar de jeito" title="Não está ajudando" className="h-12 px-4 rounded-full bg-white/10 hover:bg-white/20 text-sm font-semibold whitespace-nowrap"><span aria-hidden>🤔</span><span className="hidden sm:inline"> Não está ajudando</span></button>}
         <button onClick={() => setCaptions(!captions)} aria-pressed={captions} aria-label="Legendas" className={`w-12 h-12 rounded-full grid place-items-center text-xs font-bold ${captions ? "bg-white/25" : "bg-white/10 hover:bg-white/20"}`}>CC</button>
         <button onClick={() => { if (confirm("Encerrar a chamada agora? Seu direito de hoje será considerado usado.")) void finish("paciente"); }} aria-label="Encerrar chamada" className="h-12 px-6 rounded-full bg-red-600 hover:bg-red-500 font-semibold">Encerrar</button>
       </div>

@@ -6,7 +6,7 @@ const round1 = (n: number | null | undefined) => (n == null ? null : Math.round(
 
 export async function dashboardStats() {
   const REAL = { status: "ended", duration_sec: { gte: 180 } } as const;
-  const [invites, invUsed, invRevoked, patients, onboarded, sessionsEnded, perUser, endReasons, full, chatUsers, chatMsgs, openAlerts, highAlerts, alertsTotal, flaggedScreen, doneEx, closedEx, mood, avgDur, daily, moodDaily, risk] = await Promise.all([
+  const [invites, invUsed, invRevoked, patients, onboarded, sessionsEnded, perUser, endReasons, full, chatUsers, chatMsgs, openAlerts, highAlerts, alertsTotal, flaggedScreen, doneEx, closedEx, mood, avgDur, daily, moodDaily, risk, helpAgg, helpByPrompt] = await Promise.all([
     prisma.invite.count(),
     prisma.invite.count({ where: { used_by_id: { not: null } } }),
     prisma.invite.count({ where: { revoked: true, used_by_id: null } }),
@@ -33,6 +33,10 @@ export async function dashboardStats() {
       SELECT to_char(created_at AT TIME ZONE ${config.timezone}, 'YYYY-MM-DD') AS d, AVG(score)::float AS v
       FROM moods WHERE created_at > now() - interval '30 days' GROUP BY d ORDER BY d`,
     prisma.alert.groupBy({ by: ["level"], _count: { _all: true } }),
+    prisma.therapySession.groupBy({ by: ["feedback_rating"], where: { feedback_rating: { not: null } }, _count: { _all: true } }),
+    prisma.$queryRaw<{ v: string | null; n: bigint; avg: number }[]>`
+      SELECT prompt_version AS v, COUNT(*)::bigint AS n, AVG(feedback_rating)::float AS avg
+      FROM sessions WHERE feedback_rating IS NOT NULL GROUP BY prompt_version ORDER BY prompt_version DESC LIMIT 8`,
   ]);
   const reason = (r: string) => endReasons.find((x) => x.end_reason === r)?._count._all ?? 0;
   const withSession = perUser.length;
@@ -49,6 +53,8 @@ export async function dashboardStats() {
     moodStart: round1(mood[0]?.s), moodEnd: round1(mood[0]?.e),
     daily: daily.map((r) => ({ d: r.d, n: Number(r.n), min: Math.round(r.min) })),
     moodDaily: moodDaily.map((r) => ({ d: r.d, v: Math.round(r.v * 10) / 10 })),
+    help: { total: helpAgg.reduce((a, r) => a + r._count._all, 0), yes: helpAgg.find((r) => r.feedback_rating === 3)?._count._all ?? 0, mid: helpAgg.find((r) => r.feedback_rating === 2)?._count._all ?? 0, no: helpAgg.find((r) => r.feedback_rating === 1)?._count._all ?? 0 },
+    helpByPrompt: helpByPrompt.map((r) => ({ v: r.v ?? "—", n: Number(r.n), avg: Math.round(r.avg * 100) / 100 })),
     riskByLevel: [1, 2, 3].map((l) => ({ level: l, n: risk.find((r) => r.level === l)?._count._all ?? 0 })),
   };
 }

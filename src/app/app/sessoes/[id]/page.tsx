@@ -23,6 +23,10 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
       </div>
       {a ? (
         <>
+          {a.resumo_paciente && a.resumo_paciente.length > 0 && (
+            <section className="card bg-teal-soft/50"><h2 className="text-xl font-semibold mb-2">Para você levar</h2>
+              <ul className="space-y-2 leading-relaxed">{a.resumo_paciente.map((t) => <li key={t} className="flex gap-2"><span className="text-teal" aria-hidden>•</span><span>{t}</span></li>)}</ul></section>
+          )}
           <section className="card"><h2 className="text-xl font-semibold mb-2">Resumo</h2><p className="leading-relaxed text-ink-soft">{a.resumo}</p>
             {a.temas.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{a.temas.map((t) => <Badge key={t}>{t}</Badge>)}</div>}</section>
           {a.exercicio && <section className="card"><h2 className="text-xl font-semibold mb-1">Exercício combinado</h2><p className="font-semibold">{a.exercicio.titulo}</p><p className="text-ink-soft mt-1">{a.exercicio.descricao}</p></section>}

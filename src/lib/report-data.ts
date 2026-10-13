@@ -29,6 +29,8 @@ export async function buildDossier(uid: number) {
       durationSec: s.duration_sec ?? 0,
       endReason: s.end_reason,
       promptVersion: s.prompt_version,
+      feedbackRating: s.feedback_rating,
+      feedbackNote: s.feedback_note,
       moodStart: s.mood_start,
       moodEnd: s.mood_end,
       analysis: parseAnalysis(s) as SessionAnalysis | null,

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "./prisma";
 import { hashPassword, passwordProblem } from "./password";
 import { warmVoicePreviews } from "./voice-previews";
+import { startReminderLoop } from "./push";
 
 const gen = () => randomBytes(15).toString("base64url");
 
@@ -30,4 +31,5 @@ export async function bootstrap() {
   const t = setInterval(sweep, 3600_000);
   t.unref?.();
   warmVoicePreviews(); // prévias de voz: gera em segundo plano as que faltam
+  startReminderLoop(); // lembrete diário (19h) para quem ativou as notificações
 }

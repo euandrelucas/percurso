@@ -41,7 +41,7 @@ export default async function Patients({ searchParams }: { searchParams: Promise
         <input name="q" defaultValue={term} placeholder="Buscar por nome ou e-mail" className="input !w-72" aria-label="Buscar" />
         {f && <input type="hidden" name="f" value={f} />}
         <button className="btn btn-dark">Buscar</button>
-        <div className="flex gap-2 flex-wrap ml-2">{filters.map(([v, l]) => <Link key={v} href={`/admin/pacientes?${term ? `q=${encodeURIComponent(term)}&` : ""}${v ? `f=${v}` : ""}`} className={`chip ${f === v ? "!bg-ink !text-white !border-ink" : ""}`}>{l}</Link>)}</div>
+        <div className="flex gap-2 flex-wrap ml-2">{filters.map(([v, l]) => <Link key={v} href={`/admin/pacientes?${term ? `q=${encodeURIComponent(term)}&` : ""}${v ? `f=${v}` : ""}`} className={`chip ${f === v ? "!bg-night !text-white !border-ink" : ""}`}>{l}</Link>)}</div>
       </form>
       <div className="card !p-0 overflow-x-auto">
         <table className="w-full text-sm">

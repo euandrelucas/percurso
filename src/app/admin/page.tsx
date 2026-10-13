@@ -59,9 +59,19 @@ export default async function Dashboard() {
         <Stat label="Voltaram (2+ sessões)" value={`${s.returnRate}%`} sub={`${s.returning} de ${s.withSession}`} tone="good" />
         <Stat label="Sessões realizadas" value={s.sessionsEnded} sub={`média de ${s.avgDurMin} min`} />
         <Stat label="Sessões até o fim" value={`${s.fullRate}%`} sub="≥ 85% do tempo" />
+        <Stat label="A conversa ajudou?" value={s.help.total ? `${Math.round((s.help.yes / s.help.total) * 100)}% sim` : "—"} sub={s.help.total ? `😊 ${s.help.yes} · 😐 ${s.help.mid} · 😕 ${s.help.no} (${s.help.total} respostas)` : "ainda sem respostas"} tone={s.help.no > s.help.yes ? "alert" : "good"} />
         <Stat label="Usaram o chat" value={`${s.chatRate}%`} sub={`${s.chatMsgs} mensagens`} />
         <Stat label="Alertas abertos" value={s.openAlerts} sub={`${s.alertsTotal} no total · ${s.highAlerts} nível 3`} tone={s.openAlerts ? "alert" : "default"} />
       </div>
+
+      {s.helpByPrompt.length > 0 && (
+        <section className="card mt-6">
+          <h2 className="text-xl font-semibold mb-1">Avaliação por versão do prompt</h2>
+          <p className="text-sm text-muted mb-3">Média de 1 (não ajudou) a 3 (ajudou). Compare versões depois de cada mudança nos prompts.</p>
+          <table className="w-full text-sm"><thead><tr className="text-left text-muted"><th className="py-1">Versão</th><th>Respostas</th><th>Média</th></tr></thead>
+            <tbody>{s.helpByPrompt.map((r) => <tr key={r.v} className="border-t border-line"><td className="py-1.5 font-mono">{r.v}</td><td>{r.n}</td><td className="font-semibold">{r.avg.toFixed(2)}</td></tr>)}</tbody></table>
+        </section>
+      )}
 
       <div className="grid md:grid-cols-2 gap-5 mt-6">
         <section className="card"><h2 className="text-xl font-semibold mb-2">Sessões por dia <span className="text-sm font-normal text-muted">(30 dias)</span></h2><BarChart data={daily} label="Sessões por dia nos últimos 30 dias" /></section>
@@ -76,7 +86,7 @@ export default async function Dashboard() {
         <section className="card space-y-3">
           <h2 className="text-xl font-semibold">Como as sessões terminam</h2>
           <Bar label="Encerradas pela IA (despedida)" value={s.byAgent} total={s.sessionsEnded} />
-          <Bar label="Encerradas pelo paciente" value={s.byPatient} total={s.sessionsEnded} tone="bg-ink" />
+          <Bar label="Encerradas pelo paciente" value={s.byPatient} total={s.sessionsEnded} tone="bg-night" />
           <Bar label="Limite de tempo" value={s.byTime} total={s.sessionsEnded} tone="bg-amber-500" />
           <Bar label="Falha técnica / abandono" value={s.byTech} total={s.sessionsEnded} tone="bg-coral" />
         </section>

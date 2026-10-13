@@ -19,7 +19,7 @@ export default async function Alerts({ searchParams }: { searchParams: Promise<{
     <>
       <PageTitle title="Alertas de risco" sub="Fila de supervisão humana. A IA apenas sinaliza — a avaliação e a decisão são suas. Na dúvida, entre em contato com o participante." />
       <div className="flex flex-wrap gap-2 mb-5">
-        {tabs.map(([v, l, n]) => <Link key={v} href={v ? `/admin/alertas?s=${v}` : "/admin/alertas"} className={`chip ${((filter ?? "") === v) ? "!bg-ink !text-white !border-ink" : ""}`}>{l} <span className="opacity-70">{n}</span></Link>)}
+        {tabs.map(([v, l, n]) => <Link key={v} href={v ? `/admin/alertas?s=${v}` : "/admin/alertas"} className={`chip ${((filter ?? "") === v) ? "!bg-night !text-white !border-ink" : ""}`}>{l} <span className="opacity-70">{n}</span></Link>)}
       </div>
       <div className="space-y-3">
         {rows.map((a) => (

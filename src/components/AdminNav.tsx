@@ -16,7 +16,7 @@ export function AdminNav({ openAlerts }: { openAlerts: number }) {
     { href: "/admin/seguranca", label: "Segurança" },
   ];
   return (
-    <aside className="md:w-56 shrink-0 md:min-h-dvh bg-ink text-white p-4 md:p-5 flex md:flex-col gap-3 md:gap-8 items-center md:items-stretch justify-between md:sticky md:top-0 md:h-dvh">
+    <aside className="md:w-56 shrink-0 md:min-h-dvh bg-night text-white p-4 md:p-5 flex md:flex-col gap-3 md:gap-8 items-center md:items-stretch justify-between md:sticky md:top-0 md:h-dvh">
       <Logo light href="/admin" />
       <nav className="flex md:flex-col gap-1 flex-1 md:flex-none overflow-x-auto" aria-label="Admin">
         {items.map((i) => {

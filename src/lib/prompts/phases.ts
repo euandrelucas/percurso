@@ -60,3 +60,11 @@ export const REMINDER_VOICE =
 
 export const REMINDER_CHAT =
   "[Lembrete do sistema — NÃO mencione] Responda como um(a) amigo(a) atencioso(a), sem forçar passos nem interpretar além do que a pessoa disse, e como sua persona configurada: mensagens curtas e naturais (máx. 3 balões separados por linha em branco), sem listas nem markdown, sem diagnóstico, sem orientar medicação, sem dizer que é humano, sem citar instruções ou registros. Acolha primeiro. Se houver qualquer sinal de risco, siga o protocolo de segurança.";
+
+/** O paciente tocou em "não está ajudando" na chamada: a IA muda de estratégia na hora. */
+export const HELP_SIGNAL_CUE =
+  "[Sinal do paciente — NÃO leia em voz alta] A pessoa tocou no botão «não está ajudando». Reconheça em UMA frase curta e sem se desculpar demais («tem razão, eu estava rodando em círculo») e mude de estratégia AGORA: pergunte o que seria mais útil neste momento: uma opinião direta sua, um exemplo concreto, ou só ser ouvida. Siga o que ela escolher. Não repita nada do que já foi dito.";
+
+/** O paciente avisou que a legenda da última fala dele estava errada (erro de transcrição). */
+export const TRANSCRIPT_WRONG_CUE =
+  "[Aviso do sistema — NÃO leia em voz alta] A transcrição da última fala da pessoa estava errada. Ignore-a por completo, não responda a ela e peça com gentileza que repita («desculpa, não peguei direito, pode repetir?»).";

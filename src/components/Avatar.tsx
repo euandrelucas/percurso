@@ -25,6 +25,8 @@ type Props = {
   level?: number;
   speaking?: boolean;
   thinking?: boolean;
+  /** Expressão: "warm" (sorriso maior, sobrancelhas suaves) ou "concerned" (sobrancelhas internas elevadas, boca neutra). */
+  mood?: "neutral" | "warm" | "concerned";
   className?: string;
   /** Sem fundo próprio. */
   bare?: boolean;
@@ -35,7 +37,7 @@ type Props = {
  * Rosto ilustrado (SVG) com animações: respiração, piscar, olhar, balanço da cabeça ao falar e boca sincronizada
  * ao nível de áudio. Personalizável: pele, estilo/cor do cabelo, óculos e cor do ambiente.
  */
-export function Avatar({ avatar, getLevel, level = 0, speaking, thinking, className, bare, framing = "bust" }: Props) {
+export function Avatar({ avatar, getLevel, level = 0, speaking, thinking, mood = "neutral", className, bare, framing = "bust" }: Props) {
   const uid = useId().replace(/:/g, "");
   const [lvl, setLvl] = useState(level);
   const smooth = useRef(0);
@@ -218,7 +220,7 @@ export function Avatar({ avatar, getLevel, level = 0, speaking, thinking, classN
 
   // ---- boca ---------------------------------------------------------------------------------------------------------------
   const mouth = () => {
-    const smile = thinking ? 0 : 1;
+    const smile = thinking ? 0 : mood === "warm" ? 2.2 : mood === "concerned" ? -0.2 : 1;
     const corner = 238 - smile * 1.5;
     const upper = `M172 ${corner} Q186 ${229 - o * 0.12} 200 ${232.5 - o * 0.16} Q214 ${229 - o * 0.12} 228 ${corner} Q214 ${237 - o * 0.1} 200 ${237.5 - o * 0.1} Q186 ${237 - o * 0.1} 172 ${corner} Z`;
     const lower = `M174 ${corner + 1} Q200 ${244 + o * 0.9} 226 ${corner + 1} Q214 ${253 + o} 200 ${254 + o} Q186 ${253 + o} 174 ${corner + 1} Z`;
@@ -334,8 +336,8 @@ export function Avatar({ avatar, getLevel, level = 0, speaking, thinking, classN
             {eye(158, 1)}
             {eye(242, -1)}
             <g style={{ transform: thinking ? "translateY(-5px)" : talking ? `translateY(${-lvl * 2}px)` : "none", transition: "transform .25s ease" }} stroke={browC} strokeWidth={masc ? 9 : 6.5} fill="none" strokeLinecap="round">
-              <path d={thinking ? "M128 150 Q150 132 184 140" : masc ? "M128 150 Q154 140 184 146" : "M128 152 Q152 134 184 144"} />
-              <path d={thinking ? "M216 140 Q250 132 272 150" : masc ? "M216 146 Q246 140 272 150" : "M216 144 Q248 134 272 152"} />
+              <path d={thinking ? "M128 150 Q150 132 184 140" : mood === "concerned" ? "M128 158 Q154 144 184 132" : mood === "warm" ? "M128 148 Q152 130 184 140" : masc ? "M128 150 Q154 140 184 146" : "M128 152 Q152 134 184 144"} />
+              <path d={thinking ? "M216 140 Q250 132 272 150" : mood === "concerned" ? "M216 132 Q246 144 272 158" : mood === "warm" ? "M216 140 Q248 130 272 148" : masc ? "M216 146 Q246 140 272 150" : "M216 144 Q248 134 272 152"} />
             </g>
             {/* nariz */}
             <ellipse cx="198" cy="194" rx="5" ry="20" fill={skinL} opacity=".2" />
