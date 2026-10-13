@@ -59,6 +59,18 @@ export async function chatJSON<T>(opts: {
   return JSON.parse(content) as T;
 }
 
+/** Amostra de voz (MP3) para o paciente ouvir antes de escolher. Mesmas vozes da chamada; custo de centavos e resultado em cache. */
+export async function speechPreview(voice: string, text: string): Promise<Buffer> {
+  const res = await post("/audio/speech", {
+    model: "gpt-4o-mini-tts",
+    voice,
+    input: text,
+    response_format: "mp3",
+    instructions: "Fale em português do Brasil, de forma natural, calorosa e próxima, como uma pessoa atenciosa numa conversa, sem tom de locutor.",
+  });
+  return Buffer.from(await res.arrayBuffer());
+}
+
 /** Troca de SDP com a API Realtime (WebRTC). A chave nunca chega ao navegador e as instruções ficam no servidor. */
 export async function realtimeConnect(sdpOffer: string, session: Record<string, unknown>): Promise<string> {
   const fd = new FormData();
