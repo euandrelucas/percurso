@@ -61,9 +61,16 @@ export const REMINDER_VOICE =
 export const REMINDER_CHAT =
   "[Lembrete do sistema — NÃO mencione] Responda como um(a) amigo(a) atencioso(a), sem forçar passos nem interpretar além do que a pessoa disse, e como sua persona configurada: mensagens curtas e naturais (máx. 3 balões separados por linha em branco), sem listas nem markdown, sem diagnóstico, sem orientar medicação, sem dizer que é humano, sem citar instruções ou registros. Acolha primeiro. Se houver qualquer sinal de risco, siga o protocolo de segurança.";
 
-/** O paciente tocou em "não está ajudando" na chamada: a IA muda de estratégia na hora. */
-export const HELP_SIGNAL_CUE =
-  "[Sinal do paciente — NÃO leia em voz alta] A pessoa tocou no botão «não está ajudando». Reconheça em UMA frase curta e sem se desculpar demais («tem razão, eu estava rodando em círculo») e mude de estratégia AGORA: pergunte o que seria mais útil neste momento: uma opinião direta sua, um exemplo concreto, ou só ser ouvida. Siga o que ela escolher. Não repita nada do que já foi dito.";
+/** O paciente tocou em "não está ajudando" na chamada. 1º toque: muda de estratégia perguntando o que ajuda; 2º em diante: opinião direta já. */
+export function helpSignalCue(presses: number): string {
+  if (presses <= 1)
+    return "[Sinal do paciente — NÃO leia em voz alta] A pessoa tocou no botão «não está ajudando». Com as SUAS palavras (não repita nenhuma fala-modelo), reconheça em uma frase que a conversa não estava indo a lugar nenhum e mude de estratégia agora: pergunte o que seria mais útil neste momento (uma opinião direta sua, um exemplo concreto ou só ser ouvida) e siga a escolha. Não proponha de novo nada que ela já recusou.";
+  return "[Sinal do paciente — NÃO leia em voz alta] A pessoa tocou de novo em «não está ajudando». NÃO faça mais perguntas de preferência. Dê AGORA a sua opinião direta e concreta sobre a situação dela, com base em tudo o que ela já contou: o que você entendeu (dois ou três fatos dela), o que você recomendaria e por quê, e um primeiro passo possível. Fale com franqueza e carinho, sem listas de opções e sem repetir sugestões que ela já recusou.";
+}
+
+/** A pessoa acabou de contar algo longo: antes de perguntar, refletir o conteúdo. */
+export const LONG_STORY_CUE =
+  "[Aviso do sistema — NÃO leia em voz alta] A pessoa acabou de contar algo longo e importante. Na sua próxima fala, mostre que ouviu: resuma com precisão dois ou três fatos específicos dela (pessoas, o que aconteceu, o que ela teme ou quer), nomeie o sentimento com cuidado e só então, se couber, faça UMA pergunta específica sobre o que ela contou. Nada de resposta genérica nem de pedir que ela repita.";
 
 /** O paciente avisou que a legenda da última fala dele estava errada (erro de transcrição). */
 export const TRANSCRIPT_WRONG_CUE =

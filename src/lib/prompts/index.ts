@@ -2,7 +2,7 @@ import { PROMPT_VERSION } from "../config";
 import { CRAFT_COMMON, CHAT_STYLE, VOICE_STYLE } from "./craft";
 import { memoryBlock } from "./memory";
 import { genderOf, personaBlock } from "./persona";
-import { fillPhase, PHASE_FOLLOWUP, PHASE_TRIAGEM, WRAP_UP_RULES } from "./phases";
+import { fillPhase, helpSignalCue, PHASE_FOLLOWUP, PHASE_TRIAGEM, TRANSCRIPT_WRONG_CUE, timeCue, WRAP_UP_RULES } from "./phases";
 import { applyGender, safetyBlock } from "./safety";
 import { getAgent, getMemory } from "../store";
 import { coreKnowledgeBlock, selectModules, topicalKnowledgeBlock } from "../knowledge";
@@ -55,6 +55,58 @@ export async function buildVoiceInstructions(uid: number, ctx: VoiceContext): Pr
     `# PRIMEIRA FALA\nQuando a sessão começar, VOCÊ fala primeiro: cumprimente ${agent.preferred_name} pelo nome, de forma calorosa e breve (1 a 2 frases). ESTA INSTRUÇÃO VALE SÓ PARA A SUA PRIMEIRA FALA: depois dela, NUNCA se apresente de novo nem repita a saudação; responda sempre ao que a pessoa acabou de dizer, e se o áudio vier vazio ou confuso peça para repetir em vez de recomeçar${ctx.kind === "triagem" ? ", apresente-se (nome, que é uma IA de apoio emocional) e pergunte como a pessoa está chegando" : ", retome com leveza um fio da última conversa e pergunte como ela está hoje"}.`,
   ];
   return applyGender(parts.join("\n\n"), g);
+}
+
+export type BrainInput = { kind: "turn" | "open" | "time" | "signal"; text?: string; minutes?: number; signal?: "nao_ajudando" | "transcricao_errada"; presses?: number };
+
+const BRAIN_OUTPUT = `# SUA SAÍDA (JSON)
+Você escreve a PRÓXIMA FALA do acompanhante, que uma voz sintética vai ler em voz alta. Escreva só o que seria dito, em texto corrido, português do Brasil, sem markdown, emojis, listas, aspas de fala nem indicações entre parênteses.
+- "fala": normalmente 1 a 3 frases (até uns 45 palavras). Em pedido de panorama ou opinião, ou para explicar algo, pode ir até uns 120 palavras. Nunca comece repetindo a abertura de sempre.
+- "encerrar_sessao": true SÓ se esta fala é a despedida final (o tempo está acabando ou a pessoa pediu claramente para encerrar). Nunca em crise.
+- "risco": 0 a 3 conforme sinais claros na ÚLTIMA fala da pessoa (veja o bloco de segurança). 0 se a fala for confusa, provável erro de transcrição, ou se ela negou.`;
+
+/**
+ * Prompt do "cérebro" (modelo de texto) da chamada. A parte ESTÁVEL vem primeiro (cache de prompt barato);
+ * o que muda a cada fala (horário, memória, assunto, risco, tempo) vai no final.
+ */
+export async function buildBrainSystem(uid: number, ctx: VoiceContext & { secondsLeft: number; riskLevel: number; recentUserText: string }): Promise<string> {
+  const agent = await need(uid);
+  const g = genderOf(agent);
+  const phase = fillPhase(ctx.kind === "triagem" ? PHASE_TRIAGEM : PHASE_FOLLOWUP, { max: ctx.maxMinutes, n: ctx.sessionNumber });
+  const mins = Math.max(0, Math.round(ctx.secondsLeft / 60));
+  const topical = selectModules(`${ctx.recentUserText} . ${agent.topics}`, { max: 3 });
+  const parts = [
+    `# PAPEL E OBJETIVO\nVocê conduz, por voz, uma sessão de apoio emocional em português do Brasil dentro do estudo fechado "Percurso" (beta, com convidados). Trabalho: acolher, ajudar a pessoa a se compreender melhor e a dar passos, com segurança. A conversa deve parecer a de uma pessoa atenta, no ritmo dela.`,
+    personaBlock(agent),
+    CRAFT_COMMON,
+    VOICE_STYLE,
+    coreKnowledgeBlock(),
+    phase,
+    WRAP_UP_RULES.replace("chame a ferramenta finalizar_sessao", "marque encerrar_sessao como verdadeiro"),
+    safetyBlock(g),
+    BRAIN_OUTPUT,
+    // ---- a partir daqui muda a cada fala ----
+    momentBlock(),
+    await memoryBlock(uid),
+    topicalKnowledgeBlock(topical),
+    ctx.riskLevel > 0 ? riskModeBlock(ctx.riskLevel) : "",
+    `# TEMPO\nRestam cerca de ${mins} minuto(s) de sessão.${mins <= 10 ? " " + timeCue(mins, ctx.kind).replace(/^\[[^\]]*\]\s*/, "") : ""}`,
+  ].filter(Boolean);
+  return applyGender(parts.join("\n\n"), g);
+}
+
+/** Instrução final (como última mensagem) que diz ao cérebro o que fazer neste momento. */
+export function brainInstruction(agent: Agent, kind: "triagem" | "acompanhamento", input: BrainInput, resumed: boolean): string | null {
+  const tag = "[Instrução do sistema — NÃO leia em voz alta]";
+  if (input.kind === "open") {
+    return resumed
+      ? `${tag} A conexão caiu e voltou no meio da sessão. Diga algo breve (uma frase) mostrando que voltou e retome do ponto em que pararam, sem se apresentar de novo.`
+      : `${tag} A pessoa acabou de entrar na chamada. Escreva a PRIMEIRA fala: cumprimente ${agent.preferred_name} pelo nome, calorosa e breve (1 a 2 frases)${kind === "triagem" ? ", apresente-se (seu nome, uma IA de apoio emocional) e pergunte como ela está chegando" : ", retome com leveza um fio da última conversa e pergunte como ela está hoje"}.`;
+  }
+  if (input.kind === "time") return `${tag} ${timeCue(input.minutes ?? 5, kind).replace(/^\[[^\]]*\]\s*/, "")} Faça agora essa fala de fechamento, sem abrir assunto novo.`;
+  if (input.kind === "signal")
+    return input.signal === "transcricao_errada" ? TRANSCRIPT_WRONG_CUE : helpSignalCue(input.presses ?? 1);
+  return null;
 }
 
 const TOOLS_TEXT = `# FERRAMENTAS (invisíveis para a pessoa — nunca as mencione)

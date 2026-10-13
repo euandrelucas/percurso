@@ -6,6 +6,7 @@ import { addMessage, getSession, raiseAlert, sessionMessages } from "@/lib/store
 import { secondsLeft } from "@/lib/sessions";
 import { injectionText, selectModules } from "@/lib/knowledge";
 import { voiceRiskCue } from "@/lib/prompts";
+import { LONG_STORY_CUE } from "@/lib/prompts/phases";
 
 /** Grava cada fala (transcrição) e roda a classificação de risco nas falas do paciente. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -35,5 +36,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const mods = selectModules(b.text, { exclude: b.injected ?? [], max: 2 });
     if (mods.length) knowledge = { ids: mods.map((m) => m.id), text: injectionText(mods) };
   }
-  return json({ ok: true, risk, knowledge, riskCue: risk >= 2 ? voiceRiskCue(risk) : null });
+  // Fala longa do paciente (história, desabafo): lembra a IA de refletir o conteúdo antes de perguntar.
+  const longCue = b.role === "user" && b.text.length > 350 ? LONG_STORY_CUE : null;
+  return json({ ok: true, risk, knowledge, riskCue: risk >= 2 ? voiceRiskCue(risk) : null, longCue });
 }

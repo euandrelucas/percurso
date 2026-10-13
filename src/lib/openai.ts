@@ -40,15 +40,14 @@ export async function chatJSON<T>(opts: {
   model?: string;
   system: string;
   user: string;
+  /** Se informado, é o histórico completo depois do system (e `user` é ignorado). */
+  messages?: ChatMsg[];
   schema: { name: string; strict: boolean; schema: unknown };
   maxTokens?: number;
   temperature?: number;
 }): Promise<T> {
   const model = opts.model ?? config.chatModel();
-  const messages: ChatMsg[] = [
-    { role: "system", content: opts.system },
-    { role: "user", content: opts.user },
-  ];
+  const messages: ChatMsg[] = opts.messages ? [{ role: "system", content: opts.system }, ...opts.messages] : [{ role: "system", content: opts.system }, { role: "user", content: opts.user }];
   const res = await post(
     "/chat/completions",
     body(model, messages, { response_format: { type: "json_schema", json_schema: opts.schema } }, opts.temperature ?? 0.2, opts.maxTokens ?? 3000),

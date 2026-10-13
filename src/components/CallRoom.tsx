@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
-import { HELP_SIGNAL_CUE, REMINDER_VOICE, TRANSCRIPT_WRONG_CUE, timeCue } from "@/lib/prompts/phases";
+import { helpSignalCue, REMINDER_VOICE, TRANSCRIPT_WRONG_CUE, timeCue } from "@/lib/prompts/phases";
 import { Icon } from "@/components/icons";
 
 type Props = { agent: { name: string; avatar: AvatarT; preferredName: string }; first: boolean; maxMinutes: number; resumable: boolean };
@@ -43,6 +43,11 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const [faceMood, setFaceMood] = useState<"neutral" | "warm" | "concerned">("neutral");
   const [fixable, setFixable] = useState(false); // legenda da última fala pode ser marcada como errada
   const reconnectingRef = useRef(false);
+  const helpPresses = useRef(0);
+  const brainMode = useRef(false); // "dois cérebros": o servidor escreve cada fala e a voz só lê
+  const brainSpeaking = useRef(false);
+  const turnSeq = useRef(0);
+  const goodbyeRef = useRef<() => void>(() => {});
   const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fb, setFb] = useState<{ rating: number | null; note: string; sent: boolean; busy: boolean }>({ rating: null, note: "", sent: false, busy: false });
   const actx = useRef<AudioContext | null>(null);
@@ -163,22 +168,58 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     setToast(t);
     setTimeout(() => setToast(""), 4500);
   }, []);
+  /** Pede ao servidor a próxima fala (modelo de texto forte) e manda a voz lê-la. Se falhar, a própria voz responde (plano B). */
+  const askBrain = useCallback(
+    async (input: { kind: "turn" | "open" | "time" | "signal"; text?: string; minutes?: number; signal?: "nao_ajudando" | "transcricao_errada"; presses?: number }) => {
+      if (!sid.current) return;
+      const mine = ++turnSeq.current;
+      setThinking(true);
+      try {
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 10000);
+        const r = await fetch(`/api/call/${sid.current}/brain`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input), signal: ctrl.signal });
+        clearTimeout(to);
+        if (!r.ok) throw new Error(String(r.status));
+        const j = (await r.json()) as { reply: string; end: boolean; crisis: boolean };
+        if (j.crisis) setCrisis(true);
+        if (mine !== turnSeq.current || userSpeaking.current) return; // a pessoa já falou de novo: descarta a resposta velha
+        brainSpeaking.current = true;
+        sendEvent({
+          type: "response.create",
+          response: {
+            output_modalities: ["audio"],
+            instructions: `Leia em voz alta, em português do Brasil, EXATAMENTE o texto abaixo, sem acrescentar nem tirar nada, com entonação natural de conversa (calorosa e próxima, não de locutor).\n\nTEXTO:\n${j.reply}`,
+          },
+        });
+        if (j.end) goodbyeRef.current();
+      } catch {
+        if (mine !== turnSeq.current || ending.current) return;
+        brainSpeaking.current = false;
+        sendEvent({ type: "response.create" }); // plano B: a voz responde sozinha
+      }
+    },
+    [sendEvent],
+  );
+
   const notHelping = useCallback(() => {
     if (!sid.current || ending.current) return;
     void post(`/api/call/${sid.current}/signal`, { kind: "nao_ajudando" });
-    injectSystem(HELP_SIGNAL_CUE, true);
+    helpPresses.current += 1;
+    if (brainMode.current) void askBrain({ kind: "signal", signal: "nao_ajudando", presses: helpPresses.current });
+    else injectSystem(helpSignalCue(helpPresses.current), true);
     setThinking(true);
     flash("Entendi. Vou pedir para tentar de outro jeito.");
-  }, [injectSystem, flash]);
+  }, [injectSystem, flash, askBrain]);
   const wrongCaption = useCallback(() => {
     if (!sid.current || ending.current) return;
     void post(`/api/call/${sid.current}/signal`, { kind: "transcricao_errada" });
     sendEvent({ type: "response.cancel" });
-    injectSystem(TRANSCRIPT_WRONG_CUE, true);
+    if (brainMode.current) void askBrain({ kind: "signal", signal: "transcricao_errada" });
+    else injectSystem(TRANSCRIPT_WRONG_CUE, true);
     setFixable(false);
     setCaption(null);
     flash("Ok, vou pedir para repetir.");
-  }, [injectSystem, sendEvent, flash]);
+  }, [injectSystem, sendEvent, flash, askBrain]);
 
   const injected = useRef<Set<string>>(new Set());
   const saveTurn = useCallback(async (role: "user" | "assistant", text: string) => {
@@ -187,6 +228,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       const r = await post(`/api/call/${sid.current}/turn`, { role, text, injected: [...injected.current] });
       const j = await r.json();
       if (j.risk >= 2) setCrisis(true);
+      if (j.longCue) sendEvent({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: j.longCue }] } });
       if (j.riskCue) sendEvent({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: j.riskCue }] } });
       // conhecimento clínico "na hora certa" para o assunto que acabou de surgir (sem forçar resposta)
       if (j.knowledge?.text) {
@@ -268,7 +310,8 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           aiDraft.current = "";
           if (t) {
             setCaption({ who: "ai", text: t });
-            void saveTurn("assistant", t);
+            if (brainSpeaking.current) brainSpeaking.current = false; // já salva pelo servidor
+            else void saveTurn("assistant", t);
           }
           break;
         }
@@ -309,8 +352,9 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         }
       }
     },
-    [finishAfterGoodbye, saveTurn, sendEvent],
+    [finishAfterGoodbye, saveTurn, sendEvent, askBrain],
   );
+  goodbyeRef.current = finishAfterGoodbye;
 
   // --- Conexão em tempo real (também usada para reconectar sem perder a sessão) ---------------------------------
   async function openRealtime(sessionId: number) {
@@ -352,7 +396,9 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       setReconnecting(false);
       setPhase("live");
       setThinking(true);
-      sendEvent({ type: "response.create" }); // o agente fala primeiro (ou retoma: "pronto, voltei")
+      // O agente fala primeiro (ou retoma: "pronto, voltei"). Em modo cérebro a fala vem do servidor.
+      if (brainMode.current) void askBrain({ kind: "open" });
+      else sendEvent({ type: "response.create" });
     };
     const offer = await conn.createOffer();
     await conn.setLocalDescription(offer);
@@ -405,6 +451,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       if (!r.ok) throw new Error(j.error ?? "Não foi possível iniciar.");
       sid.current = j.sessionId;
       kindRef.current = j.kind;
+      brainMode.current = !!j.brain;
       endAt.current = Date.now() + j.secondsLeft * 1000;
       setSecs(j.secondsLeft);
 
@@ -433,7 +480,10 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       const cue = (key: string, mins: number, respond: boolean) => {
         if (!sent.current.has(key)) {
           sent.current.add(key);
-          injectSystem(timeCue(mins, kindRef.current), respond && idle);
+          // Em modo cérebro o servidor já sabe quanto tempo resta a cada fala; só pede o fechamento proativo se a pessoa estiver calada.
+          if (brainMode.current) {
+            if (respond && idle) void askBrain({ kind: "time", minutes: mins });
+          } else injectSystem(timeCue(mins, kindRef.current), respond && idle);
         }
       };
       if (left <= 600 && left > 300) cue("10", 10, false);
@@ -442,7 +492,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
       if (left <= -20) void finish("tempo"); // tolerância para a despedida terminar
     }, 1000);
     return () => clearInterval(iv);
-  }, [phase, demo, injectSystem, finish]);
+  }, [phase, demo, injectSystem, finish, askBrain]);
 
   // Lembrete de persona a cada ~10 min (reduz deriva de personalidade em conversas longas).
   useEffect(() => {
