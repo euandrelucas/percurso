@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0f1829;
+  --color-ink-soft: #2a3447;
+  --color-muted: #657084;
+  --color-line: #e6e1d6;
+  --color-sand: #f8f5ef;
+  --color-sand-deep: #efe9dc;
+  --color-paper: #ffffff;
+  --color-teal: #0d9488;
+  --color-teal-deep: #0b6f66;
+  --color-teal-soft: #e0f4f1;
+  --color-coral: #e5694f;
+  --color-coral-soft: #fdebe6;
+  --color-amber-soft: #fff4d6;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+
+html { background: var(--color-sand); color: var(--color-ink); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; min-height: 100dvh; }
+h1, h2, h3, .serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
+::selection { background: var(--color-teal-soft); }
+:focus-visible { outline: 2px solid var(--color-teal); outline-offset: 2px; border-radius: 6px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: 999px; font-weight: 600; padding: .7rem 1.3rem; transition: transform .12s, background .15s, opacity .15s; cursor: pointer; font-size: .95rem; }
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--color-teal); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--color-teal-deep); }
+.btn-dark { background: var(--color-ink); color: white; }
+.btn-dark:hover:not(:disabled) { background: var(--color-ink-soft); }
+.btn-ghost { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-sand-deep); }
+.btn-danger { background: #c2410c; color: white; }
+.card { background: var(--color-paper); border: 1px solid var(--color-line); border-radius: 1.25rem; padding: 1.25rem; }
+.input { width: 100%; border: 1px solid var(--color-line); background: white; border-radius: .85rem; padding: .7rem .9rem; font-size: 1rem; }
+.input:focus { outline: 2px solid var(--color-teal); outline-offset: 0; border-color: transparent; }
+.label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .35rem; color: var(--color-ink-soft); }
+.hint { font-size: .8rem; color: var(--color-muted); margin-top: .3rem; }
+.chip { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--color-line); background: white; border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; cursor: pointer; transition: all .12s; }
+.chip[aria-pressed="true"] { background: var(--color-ink); color: white; border-color: var(--color-ink); }
+.choice { text-align: left; border: 1.5px solid var(--color-line); background: white; border-radius: 1rem; padding: .8rem 1rem; cursor: pointer; transition: all .12s; }
+.choice:hover { border-color: var(--color-teal); }
+.choice[aria-pressed="true"] { border-color: var(--color-teal); background: var(--color-teal-soft); }
+
+/* Avatar animado */
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95%, 97% { transform: scaleY(.08); } }
+@keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.6px); } }
+@keyframes sway { 0%, 100% { transform: rotate(-.6deg); } 50% { transform: rotate(.6deg); } }
+@keyframes pulse-ring { 0% { opacity: .5; transform: scale(.96); } 100% { opacity: 0; transform: scale(1.12); } }
+@keyframes dots { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.av-eye { transform-box: fill-box; transform-origin: center; animation: blink 5.5s infinite; }
+.av-eye.b2 { animation-delay: .06s; }
+.av-body { animation: breathe 4.5s ease-in-out infinite; transform-origin: 100px 200px; }
+.av-head.speaking { animation: sway 2.4s ease-in-out infinite; transform-origin: 100px 150px; }
+.fade-up { animation: fade-up .35s ease-out both; }
+.typing span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; margin: 0 2px; animation: dots 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
