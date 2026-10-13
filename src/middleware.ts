@@ -2,16 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const IS_PROD = process.env.NODE_ENV === "production";
-const APP_HOST = (() => {
-  try {
-    return process.env.APP_URL ? new URL(process.env.APP_URL).host : null;
-  } catch {
-    return null;
-  }
-})();
-const HTTPS = (process.env.APP_URL ?? "").startsWith("https://");
+// ATENÇÃO: no runtime Edge do middleware o process.env é lido em tempo de BUILD (não de execução). Por isso nada aqui
+// depende de APP_URL: o esquema (https) e o host vêm da própria requisição (cabeçalhos do proxy).
 
-function csp(nonce: string): string {
+function csp(nonce: string, https: boolean): string {
   const dev = !IS_PROD;
   return [
     "default-src 'self'",
@@ -27,7 +21,7 @@ function csp(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    ...(HTTPS ? ["upgrade-insecure-requests"] : []),
+    ...(https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
@@ -41,7 +35,8 @@ export function middleware(req: NextRequest) {
     if (origin) {
       try {
         const oh = new URL(origin).host;
-        ok = oh === host || (!!APP_HOST && oh === APP_HOST);
+        const fwdHost = req.headers.get("x-forwarded-host");
+        ok = oh === host || (!!fwdHost && oh === fwdHost);
       } catch {
         ok = false;
       }
@@ -52,7 +47,8 @@ export function middleware(req: NextRequest) {
   }
 
   const nonce = btoa(crypto.randomUUID());
-  const policy = csp(nonce);
+  const https = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
+  const policy = csp(nonce, https);
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
@@ -66,7 +62,7 @@ export function middleware(req: NextRequest) {
   res.headers.set("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()");
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  if (HTTPS) res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  if (https) res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   // Páginas e APIs autenticadas nunca devem ser guardadas em cache (navegador, proxies ou service worker).
   if (!req.nextUrl.pathname.startsWith("/_next/")) res.headers.set("Cache-Control", "no-store");
   return res;
