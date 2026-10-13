@@ -1,6 +1,58 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import { ACCENTS, ACCESSORIES, AVATAR_DEFAULT, FACES, FACIAL_HAIR, FORMALITIES, GENDERS, HAIR_COLORS, HAIR_STYLES, HUMORS, PACES, PATIENT_GENDERS, SKIN_TONES, STYLES, TONES, VOICES, VOICE_GENDER, type Avatar as AvatarT, type GenderKey } from "@/lib/prompts/options";
+
+/** Botão ▶ que toca uma amostra da voz (um áudio por vez; sem chave da OpenAI usa a voz do navegador). */
+function useVoicePreview() {
+  const [state, setState] = useState<{ id: string; status: "loading" | "playing" | "error" } | null>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const urls = useRef<Map<string, string>>(new Map());
+  const stop = () => {
+    audio.current?.pause();
+    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    setState(null);
+  };
+  useEffect(() => () => {
+    audio.current?.pause();
+    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    urls.current.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
+  async function toggle(id: string) {
+    if (state?.id === id) return stop();
+    stop();
+    setState({ id, status: "loading" });
+    try {
+      let url = urls.current.get(id);
+      if (!url) {
+        const r = await fetch(`/api/voice-preview?voice=${encodeURIComponent(id)}`);
+        if (!r.ok) throw new Error("falha");
+        if ((r.headers.get("content-type") ?? "").includes("json")) {
+          const j = (await r.json()) as { mock?: boolean; text?: string };
+          if (j.mock && typeof speechSynthesis !== "undefined") {
+            const u = new SpeechSynthesisUtterance(j.text ?? "");
+            u.lang = "pt-BR";
+            u.onend = u.onerror = () => setState(null);
+            setState({ id, status: "playing" });
+            speechSynthesis.speak(u);
+            return;
+          }
+          throw new Error("sem prévia");
+        }
+        url = URL.createObjectURL(await r.blob());
+        urls.current.set(id, url);
+      }
+      const a = (audio.current ??= new Audio());
+      a.src = url;
+      a.onended = () => setState(null);
+      await a.play();
+      setState({ id, status: "playing" });
+    } catch {
+      setState({ id, status: "error" });
+    }
+  }
+  return { state, toggle };
+}
 
 export type AgentForm = {
   preferred_name: string;
@@ -51,6 +103,7 @@ function Swatches({ colors, value, onPick, label }: { colors: string[]; value: s
 }
 
 export function IdentityFields({ form, set }: P) {
+  const preview = useVoicePreview();
   const setAv = (p: Partial<AvatarT>) => set({ avatar: { ...form.avatar, ...p } });
   // Trocar o gênero ajusta rosto e voz sugeridos (e tira barba se voltar ao feminino), sem apagar o resto das escolhas.
   const pickGender = (g: GenderKey) => {
@@ -86,14 +139,27 @@ export function IdentityFields({ form, set }: P) {
           <input id="agent_name" className="input" value={form.agent_name} maxLength={30} onChange={(e) => set({ agent_name: e.target.value })} placeholder="Ex.: Alma, Leo, Íris…" />
         </div>
         <div>
-          <span className="label">Voz</span>
+          <span className="label">Voz <span className="font-normal text-muted">· as primeiras combinam com o gênero escolhido, mas você pode usar qualquer uma</span></span>
           <div className="grid sm:grid-cols-2 gap-2">
-            {VOICES.map((v) => (
-              <button key={v.id} type="button" className="choice" aria-pressed={form.voice === v.id} onClick={() => set({ voice: v.id })}>
-                <div className="font-semibold">{v.label}</div>
-                <div className="text-xs text-muted">{v.desc}</div>
-              </button>
-            ))}
+            {[...VOICES].sort((a, b) => Number((VOICE_GENDER[b.id] ?? "f") === (form.agent_gender === "m" ? "m" : "f")) - Number((VOICE_GENDER[a.id] ?? "f") === (form.agent_gender === "m" ? "m" : "f"))).map((v) => {
+              const st = preview.state?.id === v.id ? preview.state.status : null;
+              return (
+                <div key={v.id} className="relative">
+                  <button type="button" className="choice w-full pr-14" aria-pressed={form.voice === v.id} onClick={() => set({ voice: v.id })}>
+                    <div className="font-semibold">{v.label}</div>
+                    <div className="text-xs text-muted">{st === "error" ? "Não foi possível tocar a prévia" : v.desc}</div>
+                  </button>
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-teal text-white grid place-items-center text-sm hover:opacity-90"
+                    onClick={() => void preview.toggle(v.id)}
+                    aria-label={st === "playing" ? `Parar a prévia da voz ${v.label}` : `Ouvir a voz ${v.label}`}
+                  >
+                    {st === "loading" ? <span className="animate-pulse">…</span> : st === "playing" ? "■" : "▶"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div>

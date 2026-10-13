@@ -7,6 +7,9 @@ export const VOICES = [
   { id: "sage", label: "Sage", desc: "Serena e pausada" },
   { id: "ash", label: "Ash", desc: "Firme e amigável" },
   { id: "verse", label: "Verse", desc: "Expressiva e próxima" },
+  { id: "echo", label: "Echo", desc: "Jovem e descontraída" },
+  { id: "ballad", label: "Ballad", desc: "Suave e reflexiva" },
+  { id: "shimmer", label: "Shimmer", desc: "Leve e delicada" },
 ] as const;
 
 export const TONES = {
@@ -180,4 +183,7 @@ export const VOICE_GENDER: Record<string, "f" | "m"> = {
   sage: "f",
   ash: "m",
   verse: "m",
+  echo: "m",
+  ballad: "m",
+  shimmer: "f",
 };
