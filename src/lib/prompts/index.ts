@@ -23,6 +23,15 @@ async function topicalForCase(uid: number, agent: Agent) {
   return selectModules(text, { max: 4 });
 }
 
+/** Momento atual (horário de Brasília): permite "boa noite", "já almoçou?", "bom começo de semana" sem inventar. */
+function momentBlock(now = new Date()): string {
+  const f = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+  const hour = Number(get("hour")) % 24;
+  const part = hour < 5 ? "madrugada" : hour < 12 ? "manhã" : hour < 18 ? "tarde" : "noite";
+  return `# MOMENTO ATUAL\nAgora é ${get("weekday")}, ${get("hour")}:${get("minute")} (${part}) no horário de Brasília. Cumprimente de acordo ("bom dia", "boa tarde", "boa noite") e, se combinar, comente o momento do dia com naturalidade (ex.: madrugada → "tá acordado até tarde"). Não repita isso o tempo todo.`;
+}
+
 export type VoiceContext = { sessionNumber: number; kind: "triagem" | "acompanhamento"; maxMinutes: number };
 
 /** Instruções completas da chamada de voz (enviadas na criação da sessão Realtime). */
@@ -33,6 +42,7 @@ export async function buildVoiceInstructions(uid: number, ctx: VoiceContext): Pr
   const parts = [
     `# PAPEL E OBJETIVO\nVocê conduz, por voz, uma sessão de apoio emocional em português do Brasil dentro do estudo fechado "Percurso" (versão beta, com convidados). Seu trabalho: acolher, ajudar a pessoa a se compreender melhor e a dar pequenos passos, com segurança. A conversa deve parecer a de uma pessoa atenciosa — natural, no ritmo da pessoa e sem demora para responder.`,
     personaBlock(agent),
+    momentBlock(),
     CRAFT_COMMON,
     VOICE_STYLE,
     coreKnowledgeBlock(),
@@ -84,6 +94,7 @@ export async function buildChatSystem(uid: number, riskLevel = 0, userText = "")
   const parts = [
     `# PAPEL E OBJETIVO\nVocê responde, por mensagem, a pessoas do estudo fechado "Percurso" que escrevem entre as sessões — principalmente em momentos difíceis ou de emergência emocional. Seu papel NÃO é fazer uma sessão completa por aqui: é acolher, estabilizar, ajudar a pessoa a atravessar o momento e, se fizer sentido, convidá-la a conversar com mais calma na próxima chamada de voz. Se a pessoa só quiser desabafar, acolha.`,
     personaBlock(agent),
+    momentBlock(),
     CRAFT_COMMON,
     CHAT_STYLE,
     `# MODO EMERGÊNCIA POR MENSAGEM
