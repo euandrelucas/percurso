@@ -60,9 +60,10 @@ export async function chatJSON<T>(opts: {
 }
 
 /** Amostra de voz (MP3) para o paciente ouvir antes de escolher. Mesmas vozes da chamada; custo de centavos e resultado em cache. */
+export const TTS_MODEL = "gpt-4o-mini-tts";
 export async function speechPreview(voice: string, text: string): Promise<Buffer> {
   const res = await post("/audio/speech", {
-    model: "gpt-4o-mini-tts",
+    model: TTS_MODEL,
     voice,
     input: text,
     response_format: "mp3",

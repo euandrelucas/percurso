@@ -263,3 +263,14 @@ model AuditLog {
   @@index([created_at])
   @@map("audit_log")
 }
+
+// Amostras de voz (MP3) geradas uma única vez e reaproveitadas na escolha da voz. Não contém dados pessoais.
+model VoicePreview {
+  voice      String   @id
+  phrase_sha String // hash da frase: se a frase mudar, a amostra é regerada
+  model      String
+  audio      Bytes
+  created_at DateTime @default(now())
+
+  @@map("voice_previews")
+}
