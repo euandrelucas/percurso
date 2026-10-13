@@ -47,6 +47,8 @@ export type Hypothesis = { texto: string; confianca: "baixa" | "media" | "alta" 
 
 export type SessionAnalysis = {
   resumo: string;
+  /** 2–4 frases curtas, dirigidas ao paciente (você), para ele levar da sessão. Ausente em sessões antigas. */
+  resumo_paciente?: string[];
   temas: string[];
   emocoes_predominantes: string[];
   humor_estimado_inicio: number | null;

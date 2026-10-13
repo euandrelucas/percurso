@@ -86,7 +86,7 @@ export default async function Dashboard() {
         <section className="card space-y-3">
           <h2 className="text-xl font-semibold">Como as sessões terminam</h2>
           <Bar label="Encerradas pela IA (despedida)" value={s.byAgent} total={s.sessionsEnded} />
-          <Bar label="Encerradas pelo paciente" value={s.byPatient} total={s.sessionsEnded} tone="bg-ink" />
+          <Bar label="Encerradas pelo paciente" value={s.byPatient} total={s.sessionsEnded} tone="bg-night" />
           <Bar label="Limite de tempo" value={s.byTime} total={s.sessionsEnded} tone="bg-amber-500" />
           <Bar label="Falha técnica / abandono" value={s.byTech} total={s.sessionsEnded} tone="bg-coral" />
         </section>

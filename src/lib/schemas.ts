@@ -19,7 +19,7 @@ export const onboardingSchema = z
   .catchall(z.unknown()); // os campos do agente são normalizados por parseAgentInput (lista de opções permitidas)
 
 export const moodSchema = z.object({ score: z.number().int().min(0).max(10), note: text(280).optional() });
-export const exerciseSchema = z.object({ status: z.enum(["feito", "pendente"]), feedback: text(400).optional() });
+export const exerciseSchema = z.object({ status: z.enum(["feito", "pendente", "nao_realizado"]), feedback: text(400).optional() });
 export const chatSchema = z.object({ text: z.string().trim().min(1).max(2000) });
 export const turnSchema = z.object({ role: z.enum(["user", "assistant"]), text: z.string().trim().min(1).max(4000), injected: z.array(z.string().max(60)).max(40).optional() });
 export const riskSchema = z.object({ nivel: z.coerce.number().int().min(1).max(3), motivo: text(400).default("") });

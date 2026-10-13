@@ -48,7 +48,7 @@ export default function Landing() {
         <div className="relative fade-up" style={{ animationDelay: ".1s" }}>
           <div className="absolute -inset-6 bg-teal-soft rounded-[3rem] -rotate-3" aria-hidden />
           <div className="relative card !p-3 !rounded-[2rem] shadow-xl shadow-teal/10">
-            <div className="rounded-[1.5rem] overflow-hidden aspect-[4/5] bg-ink relative">
+            <div className="rounded-[1.5rem] overflow-hidden aspect-[4/5] bg-night relative">
               <HeroAvatar />
               <div className="absolute left-3 bottom-3 right-3 rounded-2xl bg-black/45 backdrop-blur px-4 py-3 text-white text-sm">
                 “Que bom te ver de novo. Da última vez você comentou sobre aquela conversa com seu chefe… como foi?”
@@ -58,7 +58,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="como-funciona" className="bg-ink text-white">
+      <section id="como-funciona" className="bg-night text-white">
         <div className="max-w-6xl mx-auto px-5 py-20">
           <h2 className="text-4xl font-semibold max-w-xl">Um acompanhante que lembra de você.</h2>
           <p className="mt-3 text-white/70 max-w-xl">Não é um chat genérico. Cada sessão continua da anterior, com exercícios e metas combinados com você.</p>

@@ -58,7 +58,7 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
 
   return (
     <div className="card !p-0 overflow-hidden flex flex-col h-[calc(100dvh-14rem)] min-h-[460px] max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 px-4 py-3 bg-ink text-white">
+      <div className="flex items-center gap-3 px-4 py-3 bg-night text-white">
         <AvatarThumb avatar={avatar} size={96} className="w-10 h-10 rounded-full" />
         <div><div className="font-semibold leading-tight">{agentName}</div><div className="text-xs text-white/60">IA de apoio · responde na hora</div></div>
       </div>
@@ -69,17 +69,17 @@ export function ChatView({ agentName, avatar, initial }: { agentName: string; av
             <div key={m.id} className="fade-up my-3 rounded-2xl bg-coral-soft border border-[#f6d2c9] p-4 text-sm text-ink-soft whitespace-pre-line">{m.text}</div>
           ) : (
             <div key={m.id} className={`fade-up flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-[15px] shadow-sm ${m.role === "user" ? "bg-[#d6f1ec] rounded-br-md" : "bg-white rounded-bl-md"}`}>
+              <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-[15px] shadow-sm ${m.role === "user" ? "bg-[#d6f1ec] rounded-br-md" : "bg-paper rounded-bl-md"}`}>
                 <span className="whitespace-pre-wrap break-words">{m.text}</span>
                 <span className="block text-right text-[10px] text-muted mt-0.5">{m.at}{m.role === "user" && <span className="text-teal ml-1">✓✓</span>}</span>
               </div>
             </div>
           ),
         )}
-        {typing && <div className="flex"><div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm typing" aria-label="digitando"><span /><span /><span /></div></div>}
+        {typing && <div className="flex"><div className="bg-paper rounded-2xl rounded-bl-md px-4 py-3 shadow-sm typing" aria-label="digitando"><span /><span /><span /></div></div>}
         <div ref={bottom} />
       </div>
-      <form onSubmit={send} className="flex items-end gap-2 p-3 border-t border-line bg-white">
+      <form onSubmit={send} className="flex items-end gap-2 p-3 border-t border-line bg-paper">
         <textarea
           className="input !rounded-3xl resize-none max-h-32"
           rows={1}

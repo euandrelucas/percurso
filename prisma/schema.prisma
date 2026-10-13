@@ -47,6 +47,7 @@ model User {
   reports       Report[]
 
   @@map("users")
+  push_subscriptions PushSubscription[]
 }
 
 model AuthSession {
@@ -135,6 +136,7 @@ model TherapySession {
   feedback_rating Int? // 1 não ajudou | 2 mais ou menos | 3 ajudou (resposta do paciente ao fim da chamada)
   feedback_note  String? // [ENC] comentário opcional do paciente
   feedback_at    DateTime?
+  help_signals   Int       @default(0) // vezes que o paciente tocou em "não está ajudando" durante a chamada
   messages       Message[]
 
   @@index([user_id, started_at])
@@ -276,4 +278,28 @@ model VoicePreview {
   created_at DateTime @default(now())
 
   @@map("voice_previews")
+}
+
+// Assinaturas de notificação push (lembretes do PWA). O endpoint identifica o aparelho; as chaves só servem para criptografar o aviso.
+model PushSubscription {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  endpoint     String    @unique
+  p256dh       String
+  auth         String
+  created_at   DateTime  @default(now())
+  last_sent_at DateTime?
+
+  @@index([user_id])
+  @@map("push_subscriptions")
+}
+
+// Configurações geradas pelo próprio app (ex.: chaves VAPID das notificações push). Valores sensíveis ficam criptografados.
+model AppSetting {
+  key        String   @id
+  value      String
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@map("app_settings")
 }

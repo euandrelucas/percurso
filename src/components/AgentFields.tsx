@@ -90,6 +90,12 @@ export const defaultAgentForm = (name = ""): AgentForm => ({
   goal_hint: "",
 });
 
+const NAME_IDEAS: Record<GenderKey, string[]> = {
+  f: ["Íris", "Alma", "Luna", "Clara", "Aurora", "Maria"],
+  m: ["Leo", "Théo", "Davi", "Caio", "Gael", "Rafa"],
+};
+const ALL_IDEAS = new Set([...NAME_IDEAS.f, ...NAME_IDEAS.m]);
+
 type P = { form: AgentForm; set: (patch: Partial<AgentForm>) => void };
 
 function Swatches({ colors, value, onPick, label }: { colors: string[]; value: string; onPick: (c: string) => void; label: string }) {
@@ -108,8 +114,11 @@ export function IdentityFields({ form, set }: P) {
   // Trocar o gênero ajusta rosto e voz sugeridos (e tira barba se voltar ao feminino), sem apagar o resto das escolhas.
   const pickGender = (g: GenderKey) => {
     const wasVoiceDefault = (VOICE_GENDER[form.voice] ?? "f") !== g;
+    // Nome: se está vazio ou ainda é uma das sugestões do outro gênero, troca por uma sugestão do gênero escolhido; nome digitado pela pessoa nunca é mexido.
+    const keepName = form.agent_name.trim() && !ALL_IDEAS.has(form.agent_name.trim());
     set({
       agent_gender: g,
+      agent_name: keepName ? form.agent_name : NAME_IDEAS[g][0],
       voice: wasVoiceDefault ? GENDERS[g].defaultVoice : form.voice,
       avatar: { ...form.avatar, face: GENDERS[g].defaultFace, facial: g === "f" ? "none" : form.avatar.facial, hair: g === "m" && ["hair-long", "hair-bun"].includes(form.avatar.hair) ? "hair-short" : form.avatar.hair },
     });
@@ -137,6 +146,10 @@ export function IdentityFields({ form, set }: P) {
         <div>
           <label className="label" htmlFor="agent_name">Como o seu acompanhante vai se chamar?</label>
           <input id="agent_name" className="input" value={form.agent_name} maxLength={30} onChange={(e) => set({ agent_name: e.target.value })} placeholder="Ex.: Alma, Leo, Íris…" />
+          <div className="flex flex-wrap items-center gap-1.5 mt-2" aria-label="Sugestões de nome">
+            <span className="text-xs text-muted">Ideias:</span>
+            {NAME_IDEAS[form.agent_gender === "m" ? "m" : "f"].map((n) => <button key={n} type="button" className="chip !py-0.5 !text-xs" aria-pressed={form.agent_name === n} onClick={() => set({ agent_name: n })}>{n}</button>)}
+          </div>
         </div>
         <div>
           <span className="label">Voz <span className="font-normal text-muted">· as primeiras combinam com o gênero escolhido, mas você pode usar qualquer uma</span></span>

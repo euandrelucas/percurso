@@ -33,6 +33,7 @@ const ANALYSIS_SCHEMA = {
   strict: true,
   schema: obj({
     resumo: S,
+    resumo_paciente: arr(S),
     temas: arr(S),
     emocoes_predominantes: arr(S),
     humor_estimado_inicio: nullable({ type: "integer" }),
@@ -61,6 +62,7 @@ REGRAS DE OURO
 - ERROS DE TRANSCRIÇÃO: a fala do paciente vem de transcrição automática de voz e às vezes contém trechos sem sentido ("safa shapurke", "uma vacina", "os ombros da mulher") causados por ruído ou áudio ruim. NÃO trate isso como "discurso desconexo", confusão mental ou sintoma, não derive risco disso e não os cite como fatos; ignore-os ou registre, no máximo, "trechos ininteligíveis (provável erro de transcrição)". Só levante hipótese de desorganização se houver padrão claro e consistente.
 - NEGAÇÕES: se o paciente negou algo ("não tenho vontade de me machucar"), isso NÃO é evidência de risco.
 - "memoria_atualizada.o_que_evitar" e "preferencias_de_comunicacao": registre só o que o paciente realmente demonstrou (ex.: "pede direção concreta e exemplos", "se irrita com respostas vagas ou repetitivas"). Nunca escreva conselhos genéricos como "evitar pressão" ou "respeitar o ritmo". Se a IA ficou repetitiva ou vaga e o paciente reclamou, registre isso em "o_que_evitar".
+- "resumo_paciente": 2 a 4 frases curtas ESCRITAS PARA O PACIENTE, em segunda pessoa ("você"), calorosas e simples, sem termos técnicos, sem diagnóstico e sem hipóteses: o que você ouviu de importante, algo de bom que ele fez ou percebeu, e o que ficou combinado (se houver). Se a sessão foi curta ou sem conteúdo, devolva lista vazia.
 - "resumo": 4 a 6 frases, tom neutro e profissional, sem identificar terceiros além do necessário.
 - "humor_estimado_*": use APENAS notas de 0 a 10 que a própria pessoa tenha dito; se não houver, null.
 - "exercicio": o exercício realmente combinado ao final (se houver); título curto e descrição prática em 1–3 frases, em linguagem acessível ao paciente, falando com ele ("Anote…").
@@ -127,6 +129,7 @@ async function applyAnalysis(s: Session, a: SessionAnalysis) {
 function emptyAnalysis(prev: CaseMemory, resumo: string): SessionAnalysis {
   return {
     resumo,
+    resumo_paciente: [],
     temas: [],
     emocoes_predominantes: [],
     humor_estimado_inicio: null,
@@ -148,6 +151,7 @@ function mockAnalysis(msgs: Msg[], prev: CaseMemory): SessionAnalysis {
   const said = msgs.filter((m) => m.role === "user").map((m) => m.content);
   return {
     ...emptyAnalysis(prev, `[MODO DEMONSTRAÇÃO — sem IA real] O paciente falou ${said.length} vez(es). Primeiras palavras: "${said[0]?.slice(0, 120) ?? ""}".`),
+    resumo_paciente: ["Hoje a gente conversou em modo demonstração, sem IA real.", "Combinamos uma respiração curtinha por dia: inspira contando 4, solta contando 6."],
     temas: ["demonstração"],
     fatos_observados: said.slice(0, 3).map((t) => `Disse: "${t.slice(0, 140)}"`),
     exercicio: { titulo: "Respiração de 3 minutos", descricao: "Uma vez por dia, respire contando 4 segundos para inspirar e 6 para soltar, por 3 minutos." },

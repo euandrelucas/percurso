@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "./ui";
+import { ThemeControls, type FontSize, type Theme } from "./ThemeControls";
 
 const items = [
   { href: "/app", label: "Início", exact: true },
@@ -10,7 +11,7 @@ const items = [
   { href: "/app/agente", label: "Meu agente" },
 ];
 
-export function PatientNav({ name }: { name: string }) {
+export function PatientNav({ name, theme, size }: { name: string; theme: Theme; size: FontSize }) {
   const path = usePathname();
   const router = useRouter();
   const active = (i: (typeof items)[number]) => (i.exact ? path === i.href : path.startsWith(i.href));
@@ -25,10 +26,11 @@ export function PatientNav({ name }: { name: string }) {
         <Logo href="/app" />
         <nav className="hidden md:flex items-center gap-1" aria-label="Principal">
           {items.map((i) => (
-            <Link key={i.href} href={i.href} aria-current={active(i) ? "page" : undefined} className={`px-4 py-2 rounded-full text-sm font-semibold ${active(i) ? "bg-ink text-white" : "text-ink-soft hover:bg-sand-deep"}`}>{i.label}</Link>
+            <Link key={i.href} href={i.href} aria-current={active(i) ? "page" : undefined} className={`px-4 py-2 rounded-full text-sm font-semibold ${active(i) ? "bg-night text-white" : "text-ink-soft hover:bg-sand-deep"}`}>{i.label}</Link>
           ))}
         </nav>
         <div className="flex items-center gap-3 text-sm">
+          <ThemeControls theme={theme} size={size} />
           <span className="hidden sm:inline text-muted">{name.split(" ")[0]}</span>
           <button onClick={logout} className="text-muted hover:text-ink underline underline-offset-4">Sair</button>
         </div>

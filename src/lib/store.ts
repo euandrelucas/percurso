@@ -68,6 +68,8 @@ export const saveAnalysis = (id: number, a: SessionAnalysis) =>
 export const saveFeedback = (id: number, rating: number, note: string) =>
   prisma.therapySession.update({ where: { id }, data: { feedback_rating: rating, feedback_note: note.trim() ? enc(note.trim().slice(0, 600), L.feedback) : null, feedback_at: new Date() } });
 
+export const addHelpSignal = (id: number) => prisma.therapySession.update({ where: { id }, data: { help_signals: { increment: 1 } } });
+
 export async function nextSessionNumber(uid: number) {
   const r = await prisma.therapySession.aggregate({ where: { user_id: uid }, _max: { number: true } });
   return (r._max.number ?? 0) + 1;

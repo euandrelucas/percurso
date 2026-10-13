@@ -46,6 +46,6 @@ export function PageTitle({ title, sub, action }: { title: string; sub?: string;
 }
 
 export function Badge({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "good" | "alert" | "warn" | "dark" }) {
-  const map = { default: "bg-sand-deep text-ink-soft", good: "bg-teal-soft text-teal-deep", alert: "bg-coral-soft text-[#b4401f]", warn: "bg-amber-soft text-[#8a5a00]", dark: "bg-ink text-white" };
+  const map = { default: "bg-sand-deep text-ink-soft", good: "bg-teal-soft text-teal-deep", alert: "bg-coral-soft text-[#b4401f]", warn: "bg-amber-soft text-[#8a5a00]", dark: "bg-night text-white" };
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[tone]}`}>{children}</span>;
 }

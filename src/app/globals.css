@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --color-night: #0f1829; /* escuro fixo (fundos que precisam ficar escuros nos dois temas) */
   --color-ink: #0f1829;
   --color-ink-soft: #2a3447;
   --color-muted: #657084;
@@ -29,19 +30,19 @@ h1, h2, h3, .serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-primary { background: var(--color-teal); color: white; }
 .btn-primary:hover:not(:disabled) { background: var(--color-teal-deep); }
-.btn-dark { background: var(--color-ink); color: white; }
-.btn-dark:hover:not(:disabled) { background: var(--color-ink-soft); }
+.btn-dark { background: var(--color-night); color: white; }
+.btn-dark:hover:not(:disabled) { background: #1f2a42; }
 .btn-ghost { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line); }
 .btn-ghost:hover:not(:disabled) { background: var(--color-sand-deep); }
 .btn-danger { background: #c2410c; color: white; }
 .card { background: var(--color-paper); border: 1px solid var(--color-line); border-radius: 1.25rem; padding: 1.25rem; }
-.input { width: 100%; border: 1px solid var(--color-line); background: white; border-radius: .85rem; padding: .7rem .9rem; font-size: 1rem; }
+.input { width: 100%; border: 1px solid var(--color-line); background: var(--color-paper); color: var(--color-ink); border-radius: .85rem; padding: .7rem .9rem; font-size: 1rem; }
 .input:focus { outline: 2px solid var(--color-teal); outline-offset: 0; border-color: transparent; }
 .label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .35rem; color: var(--color-ink-soft); }
 .hint { font-size: .8rem; color: var(--color-muted); margin-top: .3rem; }
-.chip { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--color-line); background: white; border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; cursor: pointer; transition: all .12s; }
-.chip[aria-pressed="true"] { background: var(--color-ink); color: white; border-color: var(--color-ink); }
-.choice { text-align: left; border: 1.5px solid var(--color-line); background: white; border-radius: 1rem; padding: .8rem 1rem; cursor: pointer; transition: all .12s; }
+.chip { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--color-line); background: var(--color-paper); border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; cursor: pointer; transition: all .12s; }
+.chip[aria-pressed="true"] { background: var(--color-night); color: white; border-color: var(--color-night); }
+.choice { text-align: left; border: 1.5px solid var(--color-line); background: var(--color-paper); color: var(--color-ink); border-radius: 1rem; padding: .8rem 1rem; cursor: pointer; transition: all .12s; }
 .choice:hover { border-color: var(--color-teal); }
 .choice[aria-pressed="true"] { border-color: var(--color-teal); background: var(--color-teal-soft); }
 
@@ -63,3 +64,30 @@ h1, h2, h3, .serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
 .typing span:nth-child(2) { animation-delay: .15s; }
 .typing span:nth-child(3) { animation-delay: .3s; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---- Tema escuro e texto maior (área do paciente) ------------------------------------------------------------------
+   [data-theme="dark"] = escuro; [data-theme="auto"] segue o aparelho. O tamanho maior usa "zoom" porque o layout é em rem. */
+@media (prefers-color-scheme: dark) { [data-theme="auto"] { color-scheme: dark; } }
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="dark"],
+[data-theme="auto"] {
+  --dk-ink: #f1ede4; --dk-ink-soft: #cdd5e3; --dk-muted: #9aa6bd; --dk-line: #2b3549; --dk-sand: #0d1420; --dk-sand-deep: #18212f;
+  --dk-paper: #141c2b; --dk-teal-soft: #11332f; --dk-teal-deep: #5ed1c4; --dk-coral-soft: #3b1f18; --dk-amber-soft: #3a3115;
+}
+[data-theme="dark"] {
+  --color-ink: var(--dk-ink); --color-ink-soft: var(--dk-ink-soft); --color-muted: var(--dk-muted); --color-line: var(--dk-line); --color-sand: var(--dk-sand);
+  --color-sand-deep: var(--dk-sand-deep); --color-paper: var(--dk-paper); --color-teal-soft: var(--dk-teal-soft); --color-teal-deep: var(--dk-teal-deep);
+  --color-coral-soft: var(--dk-coral-soft); --color-amber-soft: var(--dk-amber-soft);
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] {
+    --color-ink: var(--dk-ink); --color-ink-soft: var(--dk-ink-soft); --color-muted: var(--dk-muted); --color-line: var(--dk-line); --color-sand: var(--dk-sand);
+    --color-sand-deep: var(--dk-sand-deep); --color-paper: var(--dk-paper); --color-teal-soft: var(--dk-teal-soft); --color-teal-deep: var(--dk-teal-deep);
+    --color-coral-soft: var(--dk-coral-soft); --color-amber-soft: var(--dk-amber-soft);
+  }
+}
+.pc-shell { background: var(--color-sand); color: var(--color-ink); min-height: 100dvh; }
+[data-theme="dark"] .btn-primary:hover:not(:disabled), [data-theme="auto"] .btn-primary:hover:not(:disabled) { background: #0f766e; }
+[data-theme="dark"] .chip[aria-pressed="true"] { background: var(--color-teal); border-color: var(--color-teal); }
+@media (prefers-color-scheme: dark) { [data-theme="auto"] .chip[aria-pressed="true"] { background: var(--color-teal); border-color: var(--color-teal); } }
+[data-fs="large"] { zoom: 1.15; }
