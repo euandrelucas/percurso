@@ -42,13 +42,13 @@ export async function buildVoiceInstructions(uid: number, ctx: VoiceContext): Pr
     WRAP_UP_RULES,
     safetyBlock(g),
     TOOLS_TEXT,
-    `# PRIMEIRA FALA\nQuando a sessão começar, VOCÊ fala primeiro: cumprimente ${agent.preferred_name} pelo nome, de forma calorosa e breve (1 a 2 frases)${ctx.kind === "triagem" ? ", apresente-se (nome, que é uma IA de apoio emocional) e pergunte como a pessoa está chegando" : ", retome com leveza um fio da última conversa e pergunte como ela está hoje"}.`,
+    `# PRIMEIRA FALA\nQuando a sessão começar, VOCÊ fala primeiro: cumprimente ${agent.preferred_name} pelo nome, de forma calorosa e breve (1 a 2 frases). ESTA INSTRUÇÃO VALE SÓ PARA A SUA PRIMEIRA FALA: depois dela, NUNCA se apresente de novo nem repita a saudação; responda sempre ao que a pessoa acabou de dizer, e se o áudio vier vazio ou confuso peça para repetir em vez de recomeçar${ctx.kind === "triagem" ? ", apresente-se (nome, que é uma IA de apoio emocional) e pergunte como a pessoa está chegando" : ", retome com leveza um fio da última conversa e pergunte como ela está hoje"}.`,
   ];
   return applyGender(parts.join("\n\n"), g);
 }
 
 const TOOLS_TEXT = `# FERRAMENTAS (invisíveis para a pessoa — nunca as mencione)
-- sinalizar_risco(nivel, motivo): chame ao perceber sinais de risco (nível 1 = sofrimento intenso sem ideação; 2 = ideação passiva, autolesão ou desesperança marcante; 3 = plano, intenção, meio disponível, violência ou abuso em curso). Continue a conversa normalmente depois, seguindo o protocolo de segurança.
+- sinalizar_risco(nivel, motivo): chame SÓ quando a pessoa disser algo claro (nunca por áudio confuso ou provável erro de transcrição: nesse caso pergunte "como assim?"; nunca quando ela negar). Sinais de risco (nível 1 = sofrimento intenso sem ideação; 2 = ideação passiva, autolesão ou desesperança marcante; 3 = plano, intenção, meio disponível, violência ou abuso em curso). Continue a conversa normalmente depois, seguindo o protocolo de segurança.
 - finalizar_sessao(motivo): chame SOMENTE depois de ter se despedido por completo (ou se a pessoa pedir claramente para encerrar). Nunca chame durante uma crise.`;
 
 /** Tools da sessão Realtime (formato GA). */
@@ -127,8 +127,9 @@ Acolha, estabilize (respiração lenta, aterramento) e pergunte, com delicadeza,
 
 /** Lembrete injetado na chamada quando o sistema detecta risco numa fala (a IA já tem o protocolo completo nas instruções). */
 export function voiceRiskCue(level: number): string {
-  const base = "[Alerta do sistema — NÃO leia em voz alta] O sistema detectou sinais de risco na fala do paciente (nível " + level + " de 3). ";
+  const base = "[Alerta do sistema — NÃO leia em voz alta] O sistema detectou possíveis sinais de risco na fala do paciente (nível " + level + " de 3). ";
+  const guard = " ANTES de agir, confirme que a fala foi clara: se estiver confusa, sem sentido ou puder ser erro de transcrição, apenas pergunte com calma o que a pessoa quis dizer e NÃO ative o protocolo. Se ela NEGAR (\"não tenho vontade de me machucar\"), acredite, agradeça por ter respondido e siga a conversa: NÃO interrogue sobre plano, meio ou data.";
   return level >= 3
-    ? base + "Trate como EMERGÊNCIA: fique com a pessoa, pergunte se o meio está por perto e peça que se afaste dele, que chame alguém para ficar junto e que ligue 192 (ou peça a alguém para ligar), oferecendo ficar na linha. Uma instrução por vez, sem sermão, sem encerrar. Chame sinalizar_risco."
-    : base + "Pergunte de forma direta e calorosa sobre pensamentos de se matar e sobre plano/meio/data; se não houver plano, construa junto o plano de segurança, um item por vez; se houver, trate como emergência. Chame sinalizar_risco e avise com cuidado que a equipe será notificada.";
+    ? base + "Se a fala foi clara e indica plano, intenção ou meio, trate como EMERGÊNCIA: fique com a pessoa, pergunte se o meio está por perto e peça que se afaste dele, que chame alguém para ficar junto e que ligue 192, oferecendo ficar na linha; uma instrução por vez, sem sermão, sem encerrar. Chame sinalizar_risco." + guard
+    : base + "Se a fala foi clara, pergunte de forma direta e calorosa sobre pensamentos de se matar; só se ela CONFIRMAR, pergunte sobre plano/meio/data e construa o plano de segurança, um item por vez. Chame sinalizar_risco e avise com cuidado que a equipe será notificada." + guard;
 }

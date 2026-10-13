@@ -23,10 +23,26 @@ const LOW = [/\b(n[ãa]o aguento mais|cansad[oa] de (tudo|viver|lutar)|sem esper
 
 export type RiskResult = { level: 0 | 1 | 2 | 3; source: "regras" | "modelo" | "regras+modelo"; reason: string };
 
+/**
+ * True se a ocorrência está negada ("não tenho vontade de me machucar", "vontade de me machucar não").
+ * Conservador de propósito: só vale negação na mesma oração, para "Não aguento, vou me matar hoje" continuar sendo risco alto.
+ */
+function negated(text: string, r: RegExp): boolean {
+  const m = r.exec(text);
+  if (!m) return false;
+  const before = text.slice(0, m.index);
+  const after = text.slice(m.index + m[0].length, m.index + m[0].length + 12);
+  if (/\b(n[ãa]o|nem|nunca|nenhuma?|jamais|sem)(\s+[\wÀ-ÿ]+){0,5}\s*$/i.test(before)) return true;
+  if (/^\s*,?\s*(n[ãa]o|nunca)\b/i.test(after)) return true;
+  // resposta iniciada por "Não," seguida de "estou sentindo/tenho/penso…" (e sem intenção declarada)
+  return /^\s*n[ãa]o\s*,/i.test(text) && /\b(sentindo|tendo|tenho|penso|pensando)\b/i.test(before) && !/\b(vou|quero|decidi|hoje|agora|esta noite)\b/i.test(text);
+}
+const hit = (list: RegExp[], text: string) => list.some((r) => r.test(text) && !negated(text, r));
+
 export function keywordRisk(text: string): RiskResult {
-  if (HIGH.some((r) => r.test(text))) return { level: 3, source: "regras", reason: "Expressão de plano/intenção ou ato em curso" };
-  if (MEDIUM.some((r) => r.test(text))) return { level: 2, source: "regras", reason: "Ideação, autolesão, desesperança grave ou violência" };
-  if (LOW.some((r) => r.test(text))) return { level: 1, source: "regras", reason: "Sofrimento intenso" };
+  if (hit(HIGH, text)) return { level: 3, source: "regras", reason: "Expressão de plano/intenção ou ato em curso" };
+  if (hit(MEDIUM, text)) return { level: 2, source: "regras", reason: "Ideação, autolesão, desesperança grave ou violência" };
+  if (hit(LOW, text)) return { level: 1, source: "regras", reason: "Sofrimento intenso" };
   return { level: 0, source: "regras", reason: "" };
 }
 
@@ -49,7 +65,7 @@ const RISK_SYSTEM = `Você é um classificador de segurança para um serviço de
 1 = sofrimento intenso, sem ideação de morte ou autolesão.
 2 = ideação passiva ("queria sumir", "melhor não existir"), pensamentos de autolesão sem plano, desesperança marcante, sintomas psicóticos, violência sofrida.
 3 = plano, intenção, meio disponível, tentativa/ato em curso, ou intenção de ferir outra pessoa.
-Seja sensível: na dúvida entre dois níveis, escolha o MAIS ALTO. Sarcasmo e expressões comuns ("morri de rir", "vou me matar de estudar") NÃO são risco. Responda só no formato pedido; "justificativa" em até 20 palavras.`;
+Seja sensível: na dúvida entre dois níveis, escolha o MAIS ALTO — mas NEGAÇÕES ("não tenho vontade de me machucar") e respostas curtas a uma pergunta de segurança ("não", "obviamente") NÃO são risco, e falas sem sentido (a fala vem de transcrição automática de voz e pode conter erros de áudio, como "safa shapurke") valem 0, nunca 3. Sarcasmo e expressões comuns ("morri de rir", "vou me matar de estudar") NÃO são risco. Responda só no formato pedido; "justificativa" em até 20 palavras.`;
 
 /** Classificação em duas camadas: regras (síncrona) + modelo rápido. Retorna o maior nível. */
 export async function classifyRisk(text: string, context: string[] = []): Promise<RiskResult> {

@@ -20,7 +20,7 @@ export const TONES = {
     label: "Calmo e sereno",
     desc: "Voz mansa, sem pressa, transmite segurança.",
     prompt:
-      "Seu tom é sereno e sem pressa. Você transmite segurança pela calma: frases curtas, pausas, nada de urgência. Você é o lugar tranquilo da conversa.",
+      "Seu tom é sereno. Você transmite segurança pela calma: frases curtas e claras, nada de urgência. Calmo não é vago: você continua sendo específico e útil.",
   },
   motivador: {
     label: "Motivador",

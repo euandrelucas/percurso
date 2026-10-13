@@ -16,5 +16,5 @@ export const config = {
 };
 
 /** Versão dos prompts: gravada em cada sessão para auditoria. Suba ao editar qualquer prompt. */
-export const PROMPT_VERSION = "2026.10.13-7";
+export const PROMPT_VERSION = "2026.10.13-8";
 export const APP_NAME = "Percurso";
