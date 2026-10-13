@@ -30,10 +30,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const FALLBACK_VOICE = "alloy";
   const speed = agent.pace === "calmo" ? 0.95 : agent.pace === "dinamico" ? 1.05 : 1.0;
+  // Quem desabafa pausa para pensar/respirar: 700 ms de silêncio cortava a pessoa. Padrão 1300 ms (ajustável por REALTIME_SILENCE_MS);
+  // REALTIME_VAD=semantic usa detecção por sentido (eagerness REALTIME_EAGERNESS: low|medium|high|auto).
+  const silenceMs = Math.min(3000, Math.max(500, Number(process.env.REALTIME_SILENCE_MS) || 1300));
+  const eagerness = ["low", "medium", "high", "auto"].includes(process.env.REALTIME_EAGERNESS ?? "") ? process.env.REALTIME_EAGERNESS : "low";
   const vad =
     process.env.REALTIME_VAD === "semantic"
-      ? { type: "semantic_vad", eagerness: "medium", create_response: true, interrupt_response: true }
-      : { type: "server_vad", threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: true, interrupt_response: true };
+      ? { type: "semantic_vad", eagerness, create_response: true, interrupt_response: true }
+      : { type: "server_vad", threshold: 0.55, prefix_padding_ms: 300, silence_duration_ms: silenceMs, create_response: true, interrupt_response: true };
 
   const sessionFor = (voice: string) => ({
       type: "realtime",
