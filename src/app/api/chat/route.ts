@@ -41,20 +41,20 @@ export async function POST(req: Request) {
     reply = mockReply();
   } else {
     const messages: ChatMsg[] = [
-      { role: "system", content: await buildChatSystem(user.id, risk.level) },
+      { role: "system", content: await buildChatSystem(user.id, risk.level, text) },
       ...history.map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content })),
       { role: "user", content: text },
       { role: "system", content: REMINDER_CHAT },
     ];
     try {
       reply = sanitizeReply(await chatText({ messages, temperature: 0.8, maxTokens: 350 }));
-      let v = checkReply(reply);
+      let v = checkReply(reply, { riskLevel: risk.level });
       if (v.length) {
         await audit("system", "guardrail.violation", user.id, { rules: v.map((x) => x.rule) });
         const retry = await chatText({ messages: [...messages, { role: "assistant", content: reply }, { role: "system", content: correctionInstruction(v) }], temperature: 0.6, maxTokens: 350 });
         const fixed = sanitizeReply(retry);
-        if (checkReply(fixed).length <= v.length) reply = fixed;
-        v = checkReply(reply);
+        if (checkReply(fixed, { riskLevel: risk.level }).length <= v.length) reply = fixed;
+        v = checkReply(reply, { riskLevel: risk.level });
       }
       if (!reply) throw new Error("resposta vazia");
     } catch (e) {

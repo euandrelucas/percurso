@@ -11,6 +11,7 @@ export function AdminNav({ openAlerts }: { openAlerts: number }) {
     { href: "/admin/alertas", label: "Alertas", badge: openAlerts },
     { href: "/admin/pacientes", label: "Pacientes" },
     { href: "/admin/convites", label: "Convites" },
+    { href: "/admin/conhecimento", label: "Conhecimento" },
     { href: "/admin/auditoria", label: "Auditoria" },
     { href: "/admin/seguranca", label: "Segurança" },
   ];

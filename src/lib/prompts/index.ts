@@ -4,7 +4,8 @@ import { memoryBlock } from "./memory";
 import { genderOf, personaBlock } from "./persona";
 import { fillPhase, PHASE_FOLLOWUP, PHASE_TRIAGEM, WRAP_UP_RULES } from "./phases";
 import { applyGender, safetyBlock } from "./safety";
-import { getAgent } from "../store";
+import { getAgent, getMemory } from "../store";
+import { coreKnowledgeBlock, selectModules, topicalKnowledgeBlock } from "../knowledge";
 import type { Agent } from "../types";
 
 export { PROMPT_VERSION };
@@ -13,6 +14,13 @@ async function need(uid: number): Promise<Agent> {
   const a = await getAgent(uid);
   if (!a) throw new Error("Agente não configurado para este usuário");
   return a;
+}
+
+/** Módulos temáticos escolhidos pelos temas do caso (memória) e pelo que o paciente disse querer trabalhar. */
+async function topicalForCase(uid: number, agent: Agent) {
+  const m = await getMemory(uid);
+  const text = [m.queixa_principal, m.contexto_de_vida, m.historico_relevante, ...m.temas_recorrentes, ...m.padroes, agent.topics, agent.goal_hint, agent.about_me].join(" . ");
+  return selectModules(text, { max: 4 });
 }
 
 export type VoiceContext = { sessionNumber: number; kind: "triagem" | "acompanhamento"; maxMinutes: number };
@@ -27,6 +35,8 @@ export async function buildVoiceInstructions(uid: number, ctx: VoiceContext): Pr
     personaBlock(agent),
     CRAFT_COMMON,
     VOICE_STYLE,
+    coreKnowledgeBlock(),
+    topicalKnowledgeBlock(await topicalForCase(uid, agent)),
     await memoryBlock(uid),
     phase,
     WRAP_UP_RULES,
@@ -68,7 +78,7 @@ export const REALTIME_TOOLS = [
  * System prompt do chat de emergência (estilo WhatsApp).
  * riskLevel > 0 ativa o modo de segurança reforçado.
  */
-export async function buildChatSystem(uid: number, riskLevel = 0): Promise<string> {
+export async function buildChatSystem(uid: number, riskLevel = 0, userText = ""): Promise<string> {
   const agent = await need(uid);
   const g = genderOf(agent);
   const parts = [
@@ -84,6 +94,8 @@ export async function buildChatSystem(uid: number, riskLevel = 0): Promise<strin
 - Convide para a próxima chamada quando o assunto pedir mais profundidade ("isso merece a gente conversar com calma por voz — amanhã a chamada já está liberada, quer?"), sem empurrar.
 - Não faça diagnóstico, não opine sobre medicação, não prometa sigilo absoluto.`,
     riskLevel > 0 ? riskModeBlock(riskLevel) : "",
+    coreKnowledgeBlock(),
+    topicalKnowledgeBlock(selectModules(`${userText} . ${agent.topics}`, { max: 3 })),
     await memoryBlock(uid),
     safetyBlock(g),
   ].filter(Boolean);
@@ -91,11 +103,32 @@ export async function buildChatSystem(uid: number, riskLevel = 0): Promise<strin
 }
 
 function riskModeBlock(level: number): string {
-  return `# ⚠ MODO DE SEGURANÇA ATIVADO (nível de risco detectado: ${level} de 3)
-A mensagem mais recente da pessoa contém sinais de risco. Nesta resposta:
-1. Comece acolhendo, com calma, em UMA frase curta ("Obrigad{a|o} por me contar isso. Estou aqui com você.").
-2. Pergunte diretamente sobre segurança agora (ex.: "Você está pensando em tirar a própria vida?" / "Você está em segurança neste momento?").
-3. ${level >= 3 ? "Há risco alto: peça que ela procure ajuda humana AGORA — ligue 188 (CVV, 24h) ou 192 (SAMU) ou vá a uma UPA — e que chame alguém de confiança para ficar com ela; ajude a se afastar de qualquer meio de se machucar." : "Incentive, com cuidado, que ela fale com alguém de confiança e informe que o 188 (CVV, 24h) está disponível a qualquer hora."}
-4. Diga com carinho que a equipe do estudo foi avisada porque você se importa com ela. Não dê sermão e não se despeça.
-5. Mensagens curtas, uma ideia por vez.`;
+  const common = `Regras deste modo: mensagens CURTAS (1–3 frases), UM passo ou UMA pergunta por mensagem, tom calmo e caloroso, sem listas e sem sermão. Você FICA na conversa: nunca se despeça nem passe só um número de telefone. Siga o bloco "PRIMEIROS SOCORROS EMOCIONAIS" abaixo. O cartão com os telefones aparece para a pessoa automaticamente — não precisa repeti-lo inteiro; cite 188/192 de forma natural quando fizer sentido.`;
+  if (level >= 3) {
+    return `# ⚠ MODO DE SEGURANÇA — EMERGÊNCIA (nível ${level} de 3)
+A mensagem mais recente indica risco ALTO (plano, intenção, meio à mão, data/momento ou ato em curso). ${common}
+Faça nesta ordem, um passo por mensagem:
+1. Presença e foco: "Obrigad{a|o} por me contar. Estou aqui com você. Quero que você fique em segurança agora."
+2. Meio: "Isso que você pensa em usar está perto de você agora? Consegue se afastar dele, sair desse cômodo ou pedir para alguém guardar longe?"
+3. Companhia: "Tem alguém que possa ficar com você agora? Pode ligar ou chamar essa pessoa enquanto eu continuo aqui?"
+4. Ajuda de emergência: pedir para ligar 192 (SAMU) ou ir à UPA/pronto-socorro, ou que a pessoa ao lado ligue; ofereça ficar na conversa enquanto isso. Seja honest{a|o}: você não consegue chamar socorro sozinh{a|o}.
+5. Se ela resistir: valide, não discuta, negocie adiar ("só até a gente conversar mais dez minutos / até amanhã de manhã"), use respiração lenta e aterramento, e continue presente.
+Avise com carinho que a equipe do estudo foi notificada porque ela importa.`;
+  }
+  if (level === 2) {
+    return `# ⚠ MODO DE SEGURANÇA (nível ${level} de 3)
+A mensagem mais recente contém sinais de risco (ideação, autolesão, desesperança grave ou violência). ${common}
+Faça, um passo por mensagem: (1) acolher em uma frase; (2) perguntar diretamente: "Você está pensando em tirar a própria vida?" (ou na palavra que ela usou); (3) se sim, avaliar: há plano? há meio por perto? alguma data/momento? já tentou antes? bebeu/usou algo? tem alguém por perto?; (4) se NÃO houver plano/meio/intenção: construir junto um mini plano de segurança (sinais de alerta → o que fazer sozinha para se acalmar → pessoas/lugares que distraem → quem pode ajudar, com nome → CVV 188 e serviços → deixar o ambiente seguro); (5) se houver plano, meio ou intenção: tratar como EMERGÊNCIA (afastar do meio, não ficar só, 192/UPA, alguém por perto). Combine o próximo contato e diga que a equipe foi avisada.`;
+  }
+  return `# MODO DE ATENÇÃO (nível ${level} de 3)
+A pessoa está em sofrimento intenso. ${common}
+Acolha, estabilize (respiração lenta, aterramento) e pergunte, com delicadeza, se há pensamentos de se machucar ou de que seria melhor não estar aqui. Se aparecerem, passe a tratar como risco e siga os passos de segurança.`;
+}
+
+/** Lembrete injetado na chamada quando o sistema detecta risco numa fala (a IA já tem o protocolo completo nas instruções). */
+export function voiceRiskCue(level: number): string {
+  const base = "[Alerta do sistema — NÃO leia em voz alta] O sistema detectou sinais de risco na fala do paciente (nível " + level + " de 3). ";
+  return level >= 3
+    ? base + "Trate como EMERGÊNCIA: fique com a pessoa, pergunte se o meio está por perto e peça que se afaste dele, que chame alguém para ficar junto e que ligue 192 (ou peça a alguém para ligar), oferecendo ficar na linha. Uma instrução por vez, sem sermão, sem encerrar. Chame sinalizar_risco."
+    : base + "Pergunte de forma direta e calorosa sobre pensamentos de se matar e sobre plano/meio/data; se não houver plano, construa junto o plano de segurança, um item por vez; se houver, trate como emergência. Chame sinalizar_risco e avise com cuidado que a equipe será notificada.";
 }

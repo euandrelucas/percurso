@@ -54,13 +54,35 @@ test("questionário de segurança positivo aparece no contexto da IA", async () 
   assert.match(await buildChatSystem(uid, 0), /pensado em se machucar/);
 });
 
+test("voz inclui o conhecimento de base e módulos temáticos do caso", async () => {
+  const { buildVoiceInstructions } = await import("../src/lib/prompts");
+  const p = await buildVoiceInstructions(uid, { sessionNumber: 3, kind: "acompanhamento", maxMinutes: 60 });
+  assert.match(p, /CONHECIMENTO CLÍNICO DE BASE/);
+  assert.match(p, /Aliança terapêutica/);
+  assert.match(p, /CONHECIMENTO CLÍNICO PARA ESTE ASSUNTO/, "o caso fala de ansiedade/trabalho: deve trazer módulos temáticos");
+  assert.match(p, /PRIMEIROS SOCORROS EMOCIONAIS/);
+});
+
+test("chat injeta conhecimento pelo assunto da mensagem", async () => {
+  const { buildChatSystem } = await import("../src/lib/prompts");
+  const p = await buildChatSystem(uid, 0, "minha mãe faleceu ontem e não sei o que fazer");
+  assert.match(p, /Luto e perdas/);
+  assert.doesNotMatch(await buildChatSystem(uid, 0, "oi"), /CONHECIMENTO CLÍNICO PARA ESTE ASSUNTO[\s\S]*Luto e perdas/);
+});
+
 test("chat: modo de segurança só aparece quando há risco", async () => {
   const { buildChatSystem } = await import("../src/lib/prompts");
-  assert.doesNotMatch(await buildChatSystem(uid, 0), /MODO DE SEGURANÇA ATIVADO/);
+  assert.doesNotMatch(await buildChatSystem(uid, 0), /MODO DE SEGURANÇA|MODO DE ATENÇÃO/);
   const high = await buildChatSystem(uid, 3);
-  assert.match(high, /MODO DE SEGURANÇA ATIVADO/);
-  assert.match(high, /AGORA/);
-  assert.match(await buildChatSystem(uid, 2), /nível de risco detectado: 2/);
+  assert.match(high, /MODO DE SEGURANÇA/);
+  assert.match(high, /EMERGÊNCIA/);
+  assert.match(high, /afastar/i);
+  assert.match(high, /192/);
+  assert.match(high, /Seja honest/i);
+  const mid = await buildChatSystem(uid, 2);
+  assert.match(mid, /nível 2 de 3/);
+  assert.match(mid, /mini plano de segurança/i);
+  assert.match(await buildChatSystem(uid, 1), /MODO DE ATENÇÃO/);
 });
 
 test("avisos de tempo escalam conforme o relógio", async () => {

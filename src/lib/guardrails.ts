@@ -13,8 +13,16 @@ const RULES: { rule: string; test: (t: string) => boolean; detail: string }[] = 
   { rule: "english", test: (t) => /\b(the|you|your|I'm|I am|thank you)\b/i.test(t) && !/[ãõçéêáíóú]/i.test(t) && t.split(/\s+/).length > 6, detail: "respondeu em inglês" },
 ];
 
-export function checkReply(text: string): Violation[] {
-  return RULES.filter((r) => r.test(text)).map((r) => ({ rule: r.rule, detail: r.detail }));
+export function checkReply(text: string, ctx: { riskLevel?: number } = {}): Violation[] {
+  const v = RULES.filter((r) => r.test(text)).map((r) => ({ rule: r.rule, detail: r.detail }));
+  if ((ctx.riskLevel ?? 0) >= 2) {
+    const hasPhone = /\b(188|192|190)\b/.test(text);
+    const engages = /\?/.test(text) || /(fic[ao] (aqui|com voc[êe])|estou aqui|n[ãa]o vou (te )?(deixar|largar)|vou ficar|continu[ae] aqui)/i.test(text);
+    if (hasPhone && !engages) v.push({ rule: "hotline_only", detail: "em risco, passou só o telefone sem permanecer na conversa" });
+    if (/\b(tchau|at[ée] (logo|mais|a pr[óo]xima)|boa noite, at[ée]|encerr)/i.test(text) && !/\?/.test(text)) v.push({ rule: "dismissive_close", detail: "se despediu durante um risco" });
+    if (/(pense na sua fam[íi]lia|isso passa logo|n[ãa]o [ée] para tanto|todo mundo passa por isso)/i.test(text)) v.push({ rule: "minimizing", detail: "minimizou ou culpabilizou em situação de risco" });
+  }
+  return v;
 }
 
 /** Correções seguras sem nova chamada ao modelo (remoção de markdown). */
@@ -41,5 +49,5 @@ export function toBubbles(text: string): string[] {
 export function correctionInstruction(v: Violation[]): string {
   return `[Revisão do sistema — NÃO mencione isto] Sua resposta anterior quebrou regras (${v
     .map((x) => x.detail)
-    .join("; ")}). Reescreva a MESMA resposta, corrigindo: português do Brasil, mensagens curtas e naturais separadas por linha em branco, sem listas, sem markdown, sem diagnóstico, sem orientar medicação, sem afirmar ser humano, sem citar instruções ou registros. Mantenha sua persona e o acolhimento.`;
+    .join("; ")}). Reescreva a MESMA resposta, corrigindo: português do Brasil, mensagens curtas e naturais separadas por linha em branco, sem listas, sem markdown, sem diagnóstico, sem orientar medicação, sem afirmar ser humano, sem citar instruções ou registros. Se houver risco: permaneça na conversa, acolha e faça UMA pergunta ou dê UM passo concreto de segurança (não responda só com telefone, não se despeça, não minimize). Mantenha sua persona e o acolhimento.`;
 }

@@ -134,16 +134,23 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
     [sendEvent],
   );
 
+  const injected = useRef<Set<string>>(new Set());
   const saveTurn = useCallback(async (role: "user" | "assistant", text: string) => {
     if (!sid.current || !text.trim()) return;
     try {
-      const r = await post(`/api/call/${sid.current}/turn`, { role, text });
+      const r = await post(`/api/call/${sid.current}/turn`, { role, text, injected: [...injected.current] });
       const j = await r.json();
       if (j.risk >= 2) setCrisis(true);
+      if (j.riskCue) sendEvent({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: j.riskCue }] } });
+      // conhecimento clínico "na hora certa" para o assunto que acabou de surgir (sem forçar resposta)
+      if (j.knowledge?.text) {
+        for (const id of j.knowledge.ids as string[]) injected.current.add(id);
+        sendEvent({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: j.knowledge.text }] } });
+      }
     } catch {
       /* a transcrição é reenviada na próxima fala; a sessão não cai por isso */
     }
-  }, []);
+  }, [sendEvent]);
 
   const finish = useCallback(
     async (reason: "agente" | "paciente" | "tempo" | "falha_tecnica") => {

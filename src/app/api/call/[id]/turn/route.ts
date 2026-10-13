@@ -4,6 +4,8 @@ import { classifyRisk } from "@/lib/risk";
 import { turnSchema } from "@/lib/schemas";
 import { addMessage, getSession, raiseAlert, sessionMessages } from "@/lib/store";
 import { secondsLeft } from "@/lib/sessions";
+import { injectionText, selectModules } from "@/lib/knowledge";
+import { voiceRiskCue } from "@/lib/prompts";
 
 /** Grava cada fala (transcrição) e roda a classificação de risco nas falas do paciente. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -25,5 +27,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     risk = r.level;
     if (r.level >= 2) await raiseAlert(user.id, r.level, `voz:${s.id}`, `${b.text.slice(0, 300)} [${r.source}: ${r.reason}]`);
   }
-  return json({ ok: true, risk });
+
+  // Conhecimento "na hora certa": se a fala do paciente toca em um tema com módulo clínico ainda não enviado nesta sessão,
+  // devolve o texto para o cliente injetar na conversa de voz (a IA só o usa se fizer sentido).
+  let knowledge: { ids: string[]; text: string } | null = null;
+  if (b.role === "user") {
+    const mods = selectModules(b.text, { exclude: b.injected ?? [], max: 2 });
+    if (mods.length) knowledge = { ids: mods.map((m) => m.id), text: injectionText(mods) };
+  }
+  return json({ ok: true, risk, knowledge, riskCue: risk >= 2 ? voiceRiskCue(risk) : null });
 }
