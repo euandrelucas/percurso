@@ -6,7 +6,7 @@ import { dayKey } from "./time";
 import { EMPTY_MEMORY, type Agent, type CaseMemory, type Message, type Session, type SessionAnalysis } from "./types";
 
 // ---- Rótulos de criptografia (AAD) -------------------------------------------------------------------------------
-const L = { msg: "message.content", analysis: "session.analysis", memory: "case_memory.data", report: "report.data", alert: "alert.excerpt", totp: "user.totp" } as const;
+const L = { feedback: "session.feedback", msg: "message.content", analysis: "session.analysis", memory: "case_memory.data", report: "report.data", alert: "alert.excerpt", totp: "user.totp" } as const;
 export const encTotp = (s: string) => enc(s, L.totp)!;
 export const decTotp = (s: string) => dec(s, L.totp)!;
 
@@ -48,7 +48,8 @@ const safeJson = <T>(s: string): T | null => {
 };
 
 // ---- Sessões --------------------------------------------------------------------------------------------------------
-const hydrate = (s: Session | null): Session | null => (s ? { ...s, analysis: s.analysis ? decSafe(s.analysis, L.analysis) : null } : null);
+const hydrate = (s: Session | null): Session | null =>
+  s ? { ...s, analysis: s.analysis ? decSafe(s.analysis, L.analysis) : null, feedback_note: s.feedback_note ? decSafe(s.feedback_note, L.feedback) : null } : null;
 const hydrateAll = (a: Session[]) => a.map((s) => hydrate(s)!);
 
 export const getSession = async (id: number) => hydrate(await prisma.therapySession.findUnique({ where: { id } }));
@@ -62,6 +63,10 @@ export function parseAnalysis(s: Session | null | undefined): SessionAnalysis | 
 
 export const saveAnalysis = (id: number, a: SessionAnalysis) =>
   prisma.therapySession.update({ where: { id }, data: { analysis: enc(JSON.stringify(a), L.analysis), mood_start: a.humor_estimado_inicio, mood_end: a.humor_estimado_fim } });
+
+/** Avaliação do paciente ao fim da chamada (1 não ajudou · 2 mais ou menos · 3 ajudou) + comentário opcional (criptografado). */
+export const saveFeedback = (id: number, rating: number, note: string) =>
+  prisma.therapySession.update({ where: { id }, data: { feedback_rating: rating, feedback_note: note.trim() ? enc(note.trim().slice(0, 600), L.feedback) : null, feedback_at: new Date() } });
 
 export async function nextSessionNumber(uid: number) {
   const r = await prisma.therapySession.aggregate({ where: { user_id: uid }, _max: { number: true } });

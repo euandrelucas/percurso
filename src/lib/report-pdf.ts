@@ -20,6 +20,7 @@ const clean = (s: string | null | undefined) =>
 
 const KIND = (k: string) => (k === "triagem" ? "Triagem (1ª sessão)" : "Acompanhamento");
 const END = (r: string | null) => ({ agente: "encerrada pela IA (despedida)", paciente: "encerrada pelo paciente", tempo: "limite de tempo", falha_tecnica: "falha técnica", abandonada: "abandonada/conexão perdida" } as Record<string, string>)[r ?? ""] ?? (r ?? "—");
+const HELP = (n: number | null | undefined) => (n === 3 ? "Ajudou" : n === 2 ? "Mais ou menos" : n === 1 ? "Não ajudou" : "—");
 const LEVEL = (n: number) => (n >= 3 ? "ALTO" : n === 2 ? "MÉDIO" : "BAIXO");
 
 export function renderReportPdf(r: ReportData, d: Dossier, opts: { includeTranscripts?: boolean } = {}): Promise<Buffer> {
@@ -264,8 +265,8 @@ export function renderReportPdf(r: ReportData, d: Dossier, opts: { includeTransc
     h1("6", "Linha do tempo das sessões");
     if (d.sessions.length)
       table(
-        [{ h: "#", w: 0.8 }, { h: "Data", w: 2.6 }, { h: "Tipo", w: 2.6 }, { h: "Duração", w: 1.6 }, { h: "Término", w: 3 }, { h: "Risco", w: 1.6 }, { h: "Prompt", w: 1.9 }],
-        d.sessions.map((s) => [String(s.number), s.started, KIND(s.kind), s.duration, s.status === "active" ? "em andamento" : END(s.endReason), s.analysis ? (s.analysis.risco.nivel ? LEVEL(s.analysis.risco.nivel) : "—") : "?", s.promptVersion ?? "—"]),
+        [{ h: "#", w: 0.8 }, { h: "Data", w: 2.6 }, { h: "Tipo", w: 2.6 }, { h: "Duração", w: 1.6 }, { h: "Término", w: 3 }, { h: "Risco", w: 1.4 }, { h: "Avaliação", w: 1.9 }, { h: "Prompt", w: 1.7 }],
+        d.sessions.map((s) => [String(s.number), s.started, KIND(s.kind), s.duration, s.status === "active" ? "em andamento" : END(s.endReason), s.analysis ? (s.analysis.risco.nivel ? LEVEL(s.analysis.risco.nivel) : "—") : "?", HELP(s.feedbackRating), s.promptVersion ?? "—"]),
         { size: 8.5 },
       );
     else para("Nenhuma sessão registrada.", { color: MUTED, italic: true });
@@ -279,7 +280,7 @@ export function renderReportPdf(r: ReportData, d: Dossier, opts: { includeTransc
       const o = outline(`Sessão ${s.number} — ${s.started}`, doc.outline.children[doc.outline.children.length - 1]);
       void o;
       doc.font("Helvetica-Bold").fontSize(12).fillColor(INK).text(`Sessão ${s.number}  ·  ${KIND(s.kind)}`, PAGE_M, doc.y, { width: W });
-      doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(`${s.started}  ·  duração ${s.duration}  ·  ${s.status === "active" ? "em andamento" : END(s.endReason)}${s.moodStart != null || s.moodEnd != null ? `  ·  humor ${s.moodStart ?? "—"} a ${s.moodEnd ?? "—"}` : ""}`, { width: W });
+      doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(`${s.started}  ·  duração ${s.duration}  ·  ${s.status === "active" ? "em andamento" : END(s.endReason)}${s.moodStart != null || s.moodEnd != null ? `  ·  humor ${s.moodStart ?? "—"} a ${s.moodEnd ?? "—"}` : ""}${s.feedbackRating ? `  ·  avaliação do participante: ${HELP(s.feedbackRating)}${s.feedbackNote ? ` — "${s.feedbackNote}"` : ""}` : ""}`, { width: W });
       doc.moveDown(0.3);
       const a = s.analysis;
       if (!a) {

@@ -80,3 +80,18 @@ test("encerrar sessão é idempotente e limita a duração", async () => {
   assert.equal(b?.end_reason, "paciente", "o segundo encerramento não sobrescreve");
   assert.ok((a?.duration_sec ?? 0) <= 63 * 60, "duração limitada a max + 3 min");
 });
+
+test("feedback do fim da sessão: nota salva e comentário criptografado no banco", async () => {
+  const { saveFeedback, getSession } = await import("../src/lib/store");
+  const u = await mkUser("fb@t.test");
+  const s = await prisma.therapySession.create({ data: { user_id: u.id, number: 1, kind: "triagem", status: "ended", max_minutes: 60 } });
+  await saveFeedback(s.id, 1, "  Achei repetitiva  ");
+  const raw = await prisma.therapySession.findUnique({ where: { id: s.id } });
+  assert.equal(raw?.feedback_rating, 1);
+  assert.ok(raw?.feedback_note?.startsWith("enc:v1:"), "comentário deve estar criptografado");
+  assert.ok(raw?.feedback_at);
+  const got = await getSession(s.id);
+  assert.equal(got?.feedback_note, "Achei repetitiva");
+  await saveFeedback(s.id, 3, "");
+  assert.equal((await getSession(s.id))?.feedback_note, null);
+});

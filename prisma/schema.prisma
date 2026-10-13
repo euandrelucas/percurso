@@ -132,6 +132,9 @@ model TherapySession {
   mood_start     Int?
   mood_end       Int?
   analysis       String? // [ENC] JSON da análise pós-sessão
+  feedback_rating Int? // 1 não ajudou | 2 mais ou menos | 3 ajudou (resposta do paciente ao fim da chamada)
+  feedback_note  String? // [ENC] comentário opcional do paciente
+  feedback_at    DateTime?
   messages       Message[]
 
   @@index([user_id, started_at])

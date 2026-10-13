@@ -33,6 +33,7 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   // Elemento de áudio fora da árvore do React: a faixa remota chega ANTES da tela "live" existir (o <audio> da tela não estaria montado).
   const audioEl = useRef<HTMLAudioElement | null>(null);
   const [needsSound, setNeedsSound] = useState(false);
+  const [fb, setFb] = useState<{ rating: number | null; note: string; sent: boolean; busy: boolean }>({ rating: null, note: "", sent: false, busy: false });
   const actx = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
   const levelBuf = useRef<Uint8Array<ArrayBuffer> | null>(null);
@@ -405,6 +406,47 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
         <h1 className="text-3xl font-semibold mt-5">Sessão encerrada</h1>
         <p className="text-ink-soft mt-3 leading-relaxed">Obrigado por esse tempo, {agent.preferredName}. {agent.name} está preparando o resumo da conversa e o que ficou combinado para você.</p>
         {err && <p className="text-sm text-[#b4401f] mt-3">{err}</p>}
+        {sid.current && (
+          <div className="mt-6 text-left bg-teal-soft/60 rounded-2xl p-4">
+            {fb.sent ? (
+              <p className="text-center text-sm text-ink-soft">Obrigado por contar. Isso ajuda {agent.name} a cuidar melhor das próximas conversas. 💛</p>
+            ) : (
+              <>
+                <p className="font-semibold text-center">Como foi essa conversa pra você?</p>
+                <div className="grid grid-cols-3 gap-2 mt-3" role="group" aria-label="Avaliação da conversa">
+                  {[{ r: 3, e: "😊", t: "Me ajudou" }, { r: 2, e: "😐", t: "Mais ou menos" }, { r: 1, e: "😕", t: "Não ajudou" }].map((o) => (
+                    <button key={o.r} type="button" style={{ textAlign: "center" }} className="choice !px-2 !py-3" aria-pressed={fb.rating === o.r} onClick={() => setFb((f) => ({ ...f, rating: o.r }))}>
+                      <div className="text-2xl">{o.e}</div>
+                      <div className="text-xs mt-1">{o.t}</div>
+                    </button>
+                  ))}
+                </div>
+                {fb.rating != null && (
+                  <>
+                    <label className="label mt-3" htmlFor="fb_note">{fb.rating === 1 ? "O que poderia ter sido diferente?" : "Quer contar mais? (opcional)"}</label>
+                    <textarea id="fb_note" className="input" rows={2} maxLength={600} value={fb.note} onChange={(e) => setFb((f) => ({ ...f, note: e.target.value }))} placeholder="Escreva do seu jeito. Só a coordenação do estudo vê isso." />
+                    <button
+                      type="button"
+                      className="btn btn-primary w-full mt-3"
+                      disabled={fb.busy}
+                      onClick={async () => {
+                        setFb((f) => ({ ...f, busy: true }));
+                        try {
+                          const r = await post(`/api/call/${sid.current}/feedback`, { rating: fb.rating, note: fb.note });
+                          if (r.ok) setFb((f) => ({ ...f, sent: true }));
+                        } finally {
+                          setFb((f) => ({ ...f, busy: false }));
+                        }
+                      }}
+                    >
+                      {fb.busy ? "Enviando…" : "Enviar"}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
         <div className="mt-7 flex justify-center gap-3"><Link href="/app/sessoes" className="btn btn-primary">Ver minhas sessões</Link><Link href="/app" className="btn btn-ghost">Voltar ao início</Link></div>
         <p className="text-xs text-muted mt-6">Se precisar de apoio agora: 188 (CVV, 24h) · 192 (SAMU)</p>
       </div>
