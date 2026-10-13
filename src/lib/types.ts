@@ -8,6 +8,8 @@ export type Agent = {
   formality: string;
   humor: string;
   pace: string;
+  agent_gender: string;
+  patient_gender: string;
   avatar: unknown;
   about_me: string;
   topics: string;

@@ -90,6 +90,8 @@ model AgentSettings {
   formality      String   @default("informal")
   humor          String   @default("leve")
   pace           String   @default("normal")
+  agent_gender   String   @default("f") // f | m — como o acompanhante se apresenta (rosto, fala)
+  patient_gender String   @default("n") // m | f | n — como o paciente prefere ser tratado (n = evitar flexão de gênero)
   avatar         Json     @default("{}")
   about_me       String   @default("")
   topics         String   @default("")

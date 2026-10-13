@@ -9,7 +9,7 @@ before(async () => {
   const u = await prisma.user.create({ data: { email: "a@b.c", name: "Ana Lima", password_hash: "x", onboarded: true } });
   uid = u.id;
   await prisma.agentSettings.create({
-    data: { user_id: uid, preferred_name: "Ana", agent_name: "Leo", voice: "cedar", tone: "franco", style: "pratico", formality: "neutro", humor: "nenhum", pace: "calmo", about_me: "Sou designer", boundaries: "minha família", goal_hint: "dormir melhor" },
+    data: { user_id: uid, preferred_name: "Ana", agent_name: "Leo", agent_gender: "m", patient_gender: "f", voice: "cedar", tone: "franco", style: "pratico", formality: "neutro", humor: "nenhum", pace: "calmo", about_me: "Sou designer", boundaries: "minha família", goal_hint: "dormir melhor" },
   });
 });
 after(() => prisma.$disconnect());
@@ -27,6 +27,24 @@ test("voz: monta persona, memória, roteiro e segurança (triagem)", async () =>
   assert.match(p, /primeira conversa: você ainda não sabe nada/);
   assert.doesNotMatch(p, /\{[a-z]\|[a-z]\}/, "marcadores de gênero não resolvidos");
   assert.doesNotMatch(p, /\{\{\w+\}\}/, "placeholders não preenchidos");
+});
+
+test("gênero do acompanhante e tratamento do paciente vêm das escolhas, não da voz", async () => {
+  const { buildChatSystem } = await import("../src/lib/prompts");
+  // voz masculina + agente feminino: manda o agent_gender
+  await prisma.agentSettings.update({ where: { user_id: uid }, data: { agent_gender: "f", patient_gender: "n" } });
+  let p = await buildChatSystem(uid, 0, "oi");
+  assert.match(p, /Fale de si mesma no feminino/);
+  assert.match(p, /NÃO sabe como a pessoa prefere ser tratada/);
+  assert.match(p, /Respeito à diversidade/);
+  await prisma.agentSettings.update({ where: { user_id: uid }, data: { agent_gender: "m", patient_gender: "m" } });
+  p = await buildChatSystem(uid, 0, "oi");
+  assert.match(p, /Fale de si mesmo no masculino/);
+  assert.match(p, /MASCULINO ao flexionar/);
+  await prisma.agentSettings.update({ where: { user_id: uid }, data: { agent_gender: "m", patient_gender: "f" } });
+  p = await buildChatSystem(uid, 0, "oi");
+  assert.match(p, /FEMININO ao flexionar/);
+  assert.match(p, /Obrigado por me contar/, "marcadores de gênero do agente (masculino)");
 });
 
 test("voz: acompanhamento usa memória cifrada e resumo da sessão anterior", async () => {
