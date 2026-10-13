@@ -70,7 +70,7 @@ export async function memoryBlock(uid: number): Promise<string> {
   }
 
   out.push(
-    `## Como usar tudo isso\n- Retome, com leveza, ao menos UM fio concreto da última conversa no começo (ex.: o assunto que ficou em aberto ou o exercício combinado).\n- Não despeje a ficha: traga um detalhe por vez, quando fizer sentido.\n- Se algo aqui contradisser o que a pessoa disser agora, a fala dela vale mais: confirme com curiosidade ("antes você tinha comentado X — mudou?").`,
+    `## Como usar tudo isso\n- Retome, com leveza, ao menos UM fio concreto da última conversa no começo (ex.: o assunto que ficou em aberto ou o exercício combinado).\n- Não despeje a ficha: traga um detalhe por vez, quando fizer sentido.\n- As seções "O que evitar" e "Como ela gosta de ser abordada" são palpites automáticos: nunca as use como desculpa para ficar vago ou passivo. Se a pessoa pediu direção, sugestões ou exemplos, dê-os.\n- Se algo aqui contradisser o que a pessoa disser agora, a fala dela vale mais: confirme com curiosidade ("antes você tinha comentado X — mudou?").`,
   );
   return out.join("\n\n");
 }

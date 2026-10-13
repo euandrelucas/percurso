@@ -19,3 +19,8 @@ test("sofrimento intenso sem ideação = nível 1", () => {
 test("expressões comuns não disparam alerta", () => {
   for (const t of ["morri de rir com isso", "hoje foi um dia normal no trabalho", "estou cansada da rotina mas tudo bem", "quero muito dormir cedo hoje"]) assert.equal(lvl(t), 0, t);
 });
+
+test("negações não disparam alerta, mas intenção real continua sendo detectada", () => {
+  for (const t of ["Não, estou sentindo uma vontade de me machucar não.", "não tenho vontade de me machucar", "eu nunca pensei em me matar", "não penso em me machucar"]) assert.equal(lvl(t), 0, t);
+  for (const t of ["Eu não aguento mais, vou me matar hoje", "não consigo mais, decidi me matar", "às vezes penso em me machucar"]) assert.ok(lvl(t) >= 2, t);
+});
