@@ -408,6 +408,36 @@ export const MODULES: KnowledgeModule[] = [
 - Dizer com honestidade que você é apoio, não substituta de pessoas — e incentivar vínculos humanos sem fazê-la se sentir cobrada.`,
   },
   {
+    id: "decisao-curso-carreira",
+    titulo: "Decisão de curso, carreira e futuro (indecisão, medo de errar)",
+    area: "Temas",
+    gatilhos: ["mudar de curso", "trocar de curso", "trancar o curso", "qual curso", "bacharelado", "faculdade", "vestibular", "enem", "carreira", "profissao", "futuro profissional", "nao sei o que fazer da vida", "medo do futuro", "mercado de trabalho", "arrependido", "arrependimento", "concurso", "emprego", "me formar", "perdendo tempo", "decidir meu curso"],
+    fontes: ["Terapia de aceitação e compromisso — clarificação de valores", "Tomada de decisão (Janis & Mann; Gati — dificuldades de decisão de carreira)", "Orientação profissional: experimentação e entrevistas informacionais (Ibarra)", "Falácia do custo afundado"],
+    conteudo: `Indecisão de carreira costuma misturar três coisas: medo de errar (e de "perder tempo"), pressão externa (pais, mercado) e falta de informação. Ajude a separar, e DÊ uma leitura, não só perguntas.
+- Valide, mas organize: "você gosta das duas áreas, e o que pesa é o medo de se arrepender e de perder anos". Quando a pessoa já contou os prós e contras, NÃO peça de novo; use o que ela disse.
+- Custo afundado: o tempo que já passou não volta e não deve decidir sozinho; o que importa é o próximo passo. Trocar de curso também pode ser aprendizado, não fracasso. Ao mesmo tempo, mostre o custo real de trocar de novo (tempo a mais) para a escolha ser consciente.
+- Reversibilidade e fases: poucas decisões são irreversíveis. Perguntas úteis: "o que você perderia de verdade em cada caminho?", "qual arrependimento seria mais difícil de carregar daqui a cinco anos?", "o que dá para manter da outra área (hobby, projeto, optativas, pós-graduação, área híbrida)?".
+- Áreas híbridas existem (ex.: música com tecnologia, produção musical, computação musical, pesquisa em inovação): sugira explorar, sem prometer resultado.
+- Dados concretos antes de decidir: falar com a coordenação sobre aproveitamento de créditos, dupla formação, tempo para se formar; conversar com 2 ou 3 profissionais de cada caminho sobre o dia a dia e o mercado. Defina uma data para decidir (prazo reduz o ciclo de ruminação).
+- Valores: o que a pessoa gosta (tocar em grupo, emocionar, criar, inovar) são pistas; ajude a ver o que é essencial e o que pode vir em outro formato.
+- Pressão de pais/mercado: validar a preocupação com sustento sem decidir pela pessoa; ajudar a negociar prazos ("três semestres para testar").
+- Você pode dar uma opinião se ela pedir, deixando claro que a decisão é dela. Medo catastrófico ("morar debaixo da ponte"): checar a evidência com carinho e olhar o que ela já tem (rede, habilidades).`,
+  },
+  {
+    id: "rejeicao-inexperiencia-amorosa",
+    titulo: "Amor não correspondido, inexperiência afetiva e quebra de confiança",
+    area: "Temas",
+    gatilhos: ["nunca beijei", "nunca namorei", "nunca tive namorad", "nunca tive um relacionamento", "ser amado", "gosta de mim", "nao gosta de mim", "so me ve como amigo", "me traiu", "traicao", "mentiu para mim", "mentiu pra mim", "me enganou", "ninguem gosta de mim", "estou sem ninguem", "sem ninguem", "paixao", "gostar dela", "gostar dele", "estragar a amizade", "perder a amizade", "friendzone", "rejeicao", "rejeitou"],
+    fontes: ["Baumeister & Leary — necessidade de pertencimento", "Baumeister — rejeição amorosa não correspondida", "Gottman — reparo e confiança", "Terapia focada na compaixão (Gilbert)"],
+    conteudo: `Não ter vivido um relacionamento aos 19, 25 ou 30 anos é muito mais comum do que parece e não diz nada sobre o valor da pessoa; a vergonha costuma ser maior que o fato. Normalize sem minimizar o desejo, que é legítimo.
+- Amor não correspondido dói de verdade (a rejeição ativa as mesmas áreas de dor do corpo). Valide a tristeza e o luto da possibilidade; ajude a aceitar sem concluir que "ninguém vai gostar de mim" (generalização de uma pessoa para todas).
+- Quando a pessoa que gosta é uma amiga: amizade e interesse podem coexistir, e a resposta já recebida (por terceiros) vale menos do que uma resposta direta e respeitosa dela. Se ela quiser, ajude a pensar numa conversa sem pressão, curta e honesta, que aceite um "não" e preserve a amizade; se decidir não falar, respeite e ajude a cuidar do que sente (distância temporária, outros interesses).
+- Quebra de confiança (alguém mentiu e age como se nada tivesse acontecido): o incômodo faz sentido. Ajude a nomear o que ele(a) precisa ("reconhecimento", "explicação", "distância") e as opções: falar uma vez, com clareza e sem acusação ("quando isso aconteceu, eu me senti enganado; preciso que a gente fale sobre isso"); ou manter a relação em outro nível; ou se afastar. Esperar que a outra pessoa "assuma sozinha" pode durar para sempre: pergunte se ele(a) quer esperar ou agir.
+- Conexão a longo prazo: ampliar a rede (grupos, atividades com interesse comum, música, igreja, voluntariado), sem transformar cada encontro em teste; conhecer gente aos poucos aumenta a chance de afinidade.
+- Autoestima: ajudar a listar o que a pessoa oferece como parceiro e amigo (lealdade, cuidado, criatividade), sem bajulação.
+- Se aparecer desesperança forte ou isolamento, pergunte com delicadeza sobre pensamentos de se machucar.`,
+  },
+  {
     id: "tdah-neurodiversidade",
     titulo: "Dificuldades de atenção, organização e neurodiversidade",
     area: "Temas",

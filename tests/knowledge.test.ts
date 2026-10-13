@@ -75,3 +75,9 @@ test("guardrail de risco: bloqueia resposta só com telefone, despedida e minimi
   assert.ok(r("Pense na sua família, isso passa logo.").includes("minimizing"));
   assert.deepEqual(checkReply("Ligue 188 agora.", { riskLevel: 0 }).map((v) => v.rule), []);
 });
+
+test("módulos novos: decisão de curso/carreira e amor não correspondido/inexperiência", () => {
+  const ids = (t: string) => selectModules(t, { max: 3 }).map((m) => m.id);
+  assert.ok(ids("tô na dúvida se volto pro outro curso, perdi tempo e tenho medo do futuro e do mercado de trabalho").includes("decisao-curso-carreira"));
+  assert.ok(ids("nunca beijei, quero ser amado, mas ela só me vê como amigo").includes("rejeicao-inexperiencia-amorosa"));
+});
