@@ -11,33 +11,6 @@ type Phase = "lobby" | "connecting" | "live" | "ended" | "error";
 const mmss = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
 const post = (url: string, body?: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
-/** Avatar com boca sincronizada: lê o nível de áudio direto de uma função (sem re-renderizar a sala inteira). */
-function LiveAvatar({ avatar, getLevel, thinking }: { avatar: AvatarT; getLevel: () => number; thinking: boolean }) {
-  const [lvl, setLvl] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const tick = (t: number) => {
-      if (t - last > 45) {
-        last = t;
-        setLvl((p) => {
-          const n = getLevel();
-          return Math.abs(n - p) > 0.02 ? n : p;
-        });
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [getLevel]);
-  const bg = `radial-gradient(120% 90% at 50% 25%, ${avatar.accent}cc, ${avatar.accent}66 55%, #0b1220 100%)`;
-  return (
-    <div className="w-full h-full" style={{ background: bg }}>
-      <Avatar bare avatar={avatar} level={lvl} speaking={lvl > 0.05} thinking={thinking && lvl < 0.05} className="w-full h-full" />
-    </div>
-  );
-}
-
 export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [err, setErr] = useState("");
@@ -442,12 +415,12 @@ export function CallRoom({ agent, first, maxMinutes, resumable }: Props) {
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono ${low ? "bg-coral text-white" : "bg-white/10"}`}><span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />{mmss(secs)}</span>
           {demo && <span className="rounded-full bg-amber-400 text-black px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">Demonstração · sem IA real</span>}
         </div>
-        <a href="tel:188" className="rounded-full bg-white/10 hover:bg-white/20 px-3 py-1 text-xs">Precisa de ajuda agora? 188</a>
+        <a href="tel:188" className="rounded-full bg-white/10 hover:bg-white/20 px-3 py-1 text-xs whitespace-nowrap"><span className="hidden sm:inline">Precisa de ajuda agora? 188</span><span className="sm:hidden">Ajuda: 188</span></a>
       </div>
 
       <div className="flex-1 relative min-h-0 px-3 pb-3">
         <div className="h-full w-full max-w-5xl mx-auto relative rounded-3xl overflow-hidden bg-black/30 ring-1 ring-white/10">
-          <LiveAvatar avatar={agent.avatar} getLevel={getLevel} thinking={thinking} />
+          <Avatar avatar={agent.avatar} getLevel={getLevel} thinking={thinking} className="w-full h-full" />
           <div className="absolute left-4 bottom-4 text-sm bg-black/50 rounded-lg px-2.5 py-1">{agent.name} · IA</div>
 
           {captions && caption && (

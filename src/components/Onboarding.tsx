@@ -66,8 +66,8 @@ export function Onboarding({ userName }: { userName: string }) {
     return (
       <main className="min-h-dvh grid place-items-center px-5 py-10">
         <div className="max-w-md w-full text-center fade-up">
-          <div className="w-44 h-44 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg">
-            <Avatar avatar={form.avatar} level={0.1} speaking className="w-full h-full" />
+          <div className="w-48 h-48 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg">
+            <Avatar avatar={form.avatar} className="w-full h-full" />
           </div>
           <h1 className="text-4xl font-semibold mt-6">Conheça {form.agent_name}</h1>
           <p className="text-ink-soft mt-3 leading-relaxed">Tudo pronto, {form.preferred_name}. {form.agent_name} já sabe como você gosta de conversar. Sua primeira sessão será uma conversa de apresentação, sem pressa.</p>

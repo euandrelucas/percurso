@@ -1,0 +1,24 @@
+{
+  "name": "Percurso",
+  "short_name": "Percurso",
+  "description": "Acompanhamento emocional com apoio de IA — beta fechado.",
+  "id": "/app",
+  "start_url": "/app?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "background_color": "#f8f5ef",
+  "theme_color": "#0f1829",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Entrar na chamada", "short_name": "Chamada", "url": "/app/atendimento/chamada", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Enviar mensagem", "short_name": "Mensagens", "url": "/app/atendimento/mensagens", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

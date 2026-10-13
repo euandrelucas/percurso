@@ -8,15 +8,11 @@ const list = (a: string[], n = 8) => a.slice(0, n).map((x) => `  • ${clip(x, 2
  * Bloco de contexto do paciente, montado de forma DETERMINÍSTICA a partir do banco.
  * O modelo nunca recebe transcrições completas — só este resumo estruturado (menor custo, maior consistência).
  */
-export function memoryBlock(uid: number): string {
-  const mem = getMemory(uid);
-  const past = endedSessions(uid, 4); // mais recentes primeiro
-  const goals = activeGoals(uid).filter((g) => g.status === "ativa");
-  const exercises = allExercises(uid);
+export async function memoryBlock(uid: number): Promise<string> {
+  const [mem, past, allGoals, exercises, moods, scr] = await Promise.all([getMemory(uid), endedSessions(uid, 4), activeGoals(uid), allExercises(uid), moodHistory(uid, 8), screenings(uid)]);
+  const goals = allGoals.filter((g) => g.status === "ativa");
   const pending = exercises.filter((e) => e.status === "pendente").slice(0, 3);
   const done = exercises.filter((e) => e.status !== "pendente").slice(0, 3);
-  const moods = moodHistory(uid, 8);
-  const scr = screenings(uid);
 
   const out: string[] = [`# O QUE VOCÊ JÁ SABE SOBRE ESTA PESSOA (use com naturalidade, nunca como quem lê uma ficha)`];
 
@@ -38,8 +34,14 @@ export function memoryBlock(uid: number): string {
   if (ctx.length) out.push(`## Contexto\n${ctx.join("\n")}`);
 
   if (scr.length) {
-    const last = scr.slice(-4).map((s) => `${s.kind.toUpperCase()}: ${s.score}${s.flagged ? " (acima do ponto de atenção)" : ""} em ${fmtDate(s.created_at)}`);
-    out.push(`## Triagem inicial (escalas)\n${last.map((l) => `- ${l}`).join("\n")}\n(Isto é só um indicativo para você ter sensibilidade; não comente números nem "resultados" com a pessoa.)`);
+    const lines = scr.slice(-4).map((s) =>
+      s.kind === "seguranca"
+        ? s.score
+          ? `- Questionário de segurança: a pessoa disse ter pensado em se machucar ou que seria melhor não estar aqui (${fmtDate(s.created_at)}). Trate com cuidado extra e, no momento certo, pergunte com delicadeza como ela está em relação a isso.`
+          : `- Questionário de segurança: respondeu que não (${fmtDate(s.created_at)}).`
+        : `- ${s.kind.toUpperCase()}: ${s.score}/6${s.flagged ? " (acima do ponto de atenção)" : ""} em ${fmtDate(s.created_at)}`,
+    );
+    out.push(`## Triagem inicial\n${lines.join("\n")}\n(Indicativos para você ter sensibilidade; não comente números nem "resultados" com a pessoa.)`);
   }
 
   if (moods.length) {

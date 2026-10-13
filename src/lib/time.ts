@@ -1,31 +1,25 @@
 import { config } from "./config";
 
-/** SQLite grava UTC como "YYYY-MM-DD HH:MM:SS". */
-export function parseDbDate(s: string): Date {
-  return new Date(s.replace(" ", "T") + "Z");
-}
+type D = Date | string | null | undefined;
+const toDate = (d: Exclude<D, null | undefined>) => (d instanceof Date ? d : new Date(d));
 
 export function dayKey(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: config.timezone }).format(d);
 }
 
-export function fmtDateTime(s: string | null | undefined): string {
-  if (!s) return "—";
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: config.timezone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parseDbDate(s));
+export function fmtDateTime(d: D): string {
+  if (!d) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: config.timezone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(toDate(d));
 }
 
-export function fmtDate(s: string | null | undefined): string {
-  if (!s) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: config.timezone, day: "2-digit", month: "long", year: "numeric" }).format(
-    parseDbDate(s),
-  );
+export function fmtDate(d: D): string {
+  if (!d) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: config.timezone, day: "2-digit", month: "long", year: "numeric" }).format(toDate(d));
+}
+
+export function fmtShort(d: D): string {
+  if (!d) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: config.timezone, day: "2-digit", month: "2-digit" }).format(toDate(d));
 }
 
 export function fmtDuration(sec: number | null | undefined): string {

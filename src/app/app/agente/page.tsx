@@ -9,7 +9,7 @@ export const metadata = { title: "Meu agente" };
 
 export default async function AgentPage() {
   const u = await requirePatient();
-  const a = getAgent(u.id)!;
+  const a = (await getAgent(u.id))!;
   return (
     <>
       <PageTitle title="Seu acompanhante" sub="Mude o nome, a voz, a aparência e o jeito de conversar quando quiser." />

@@ -9,8 +9,8 @@ import type { Agent } from "../types";
 
 export { PROMPT_VERSION };
 
-function need(uid: number): Agent {
-  const a = getAgent(uid);
+async function need(uid: number): Promise<Agent> {
+  const a = await getAgent(uid);
   if (!a) throw new Error("Agente não configurado para este usuário");
   return a;
 }
@@ -18,8 +18,8 @@ function need(uid: number): Agent {
 export type VoiceContext = { sessionNumber: number; kind: "triagem" | "acompanhamento"; maxMinutes: number };
 
 /** Instruções completas da chamada de voz (enviadas na criação da sessão Realtime). */
-export function buildVoiceInstructions(uid: number, ctx: VoiceContext): string {
-  const agent = need(uid);
+export async function buildVoiceInstructions(uid: number, ctx: VoiceContext): Promise<string> {
+  const agent = await need(uid);
   const g = genderOf(agent);
   const phase = fillPhase(ctx.kind === "triagem" ? PHASE_TRIAGEM : PHASE_FOLLOWUP, { max: ctx.maxMinutes, n: ctx.sessionNumber });
   const parts = [
@@ -27,7 +27,7 @@ export function buildVoiceInstructions(uid: number, ctx: VoiceContext): string {
     personaBlock(agent),
     CRAFT_COMMON,
     VOICE_STYLE,
-    memoryBlock(uid),
+    await memoryBlock(uid),
     phase,
     WRAP_UP_RULES,
     safetyBlock(g),
@@ -68,8 +68,8 @@ export const REALTIME_TOOLS = [
  * System prompt do chat de emergência (estilo WhatsApp).
  * riskLevel > 0 ativa o modo de segurança reforçado.
  */
-export function buildChatSystem(uid: number, riskLevel = 0): string {
-  const agent = need(uid);
+export async function buildChatSystem(uid: number, riskLevel = 0): Promise<string> {
+  const agent = await need(uid);
   const g = genderOf(agent);
   const parts = [
     `# PAPEL E OBJETIVO\nVocê responde, por mensagem, a pessoas do estudo fechado "Percurso" que escrevem entre as sessões — principalmente em momentos difíceis ou de emergência emocional. Seu papel NÃO é fazer uma sessão completa por aqui: é acolher, estabilizar, ajudar a pessoa a atravessar o momento e, se fizer sentido, convidá-la a conversar com mais calma na próxima chamada de voz. Se a pessoa só quiser desabafar, acolha.`,
@@ -84,7 +84,7 @@ export function buildChatSystem(uid: number, riskLevel = 0): string {
 - Convide para a próxima chamada quando o assunto pedir mais profundidade ("isso merece a gente conversar com calma por voz — amanhã a chamada já está liberada, quer?"), sem empurrar.
 - Não faça diagnóstico, não opine sobre medicação, não prometa sigilo absoluto.`,
     riskLevel > 0 ? riskModeBlock(riskLevel) : "",
-    memoryBlock(uid),
+    await memoryBlock(uid),
     safetyBlock(g),
   ].filter(Boolean);
   return applyGender(parts.join("\n\n"), g);
@@ -99,6 +99,3 @@ A mensagem mais recente da pessoa contém sinais de risco. Nesta resposta:
 4. Diga com carinho que a equipe do estudo foi avisada porque você se importa com ela. Não dê sermão e não se despeça.
 5. Mensagens curtas, uma ideia por vez.`;
 }
-
-/** Prompt compacto usado no teste de consistência da persona (eval). */
-export const _internals = { personaBlock, memoryBlock };

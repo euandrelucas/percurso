@@ -7,11 +7,11 @@ const post = (url: string, body?: unknown, method = "POST") => fetch(url, { meth
 export function CopyButton({ text, label = "Copiar" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
   return (
-    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? "Copiado ✓" : label}</button>
+    <button className="text-xs font-semibold text-teal-deep hover:underline" onClick={async () => { await navigator.clipboard.writeText(text.startsWith("/") ? window.location.origin + text : text).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? "Copiado ✓" : label}</button>
   );
 }
 
-export function InviteForm() {
+export function InviteForm({ appUrl }: { appUrl: string }) {
   const router = useRouter();
   const [label, setLabel] = useState("");
   const [count, setCount] = useState(1);
@@ -38,7 +38,7 @@ export function InviteForm() {
       {codes.length > 0 && (
         <div className="mt-4 rounded-xl bg-teal-soft p-4">
           <p className="text-sm font-semibold mb-2">Códigos gerados — envie para seus amigos:</p>
-          <ul className="space-y-1.5">{codes.map((c) => <li key={c} className="flex items-center gap-3"><code className="font-mono text-lg tracking-widest">{c}</code><CopyButton text={c} /></li>)}</ul>
+          <ul className="space-y-1.5">{codes.map((c) => <li key={c} className="flex items-center gap-3 flex-wrap"><code className="font-mono text-lg tracking-widest">{c}</code><CopyButton text={c} /><CopyButton text={`${appUrl}/cadastro?code=${c}`} label="Copiar link" /></li>)}</ul>
         </div>
       )}
     </div>
@@ -81,7 +81,9 @@ export function PatientActions({ id, status, callsPerDay, hasReport }: { id: num
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [transcripts, setTranscripts] = useState(true);
   const [limit, setLimit] = useState<string>(callsPerDay === null ? "" : String(callsPerDay));
+  const qs = transcripts ? "" : "&transcripts=0";
   async function report() {
     setBusy(true);
     setErr("");
@@ -90,17 +92,22 @@ export function PatientActions({ id, status, callsPerDay, hasReport }: { id: num
     setBusy(false);
     if (!r.ok) return setErr(j.error ?? "Erro");
     router.refresh();
-    window.location.href = `/api/admin/users/${id}/pdf?report=${j.reportId}`;
+    window.location.href = `/api/admin/users/${id}/pdf?report=${j.reportId}${qs}`;
   }
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <button className="btn btn-primary" onClick={report} disabled={busy}>{busy ? "Gerando relatório…" : hasReport ? "Gerar novo relatório (PDF)" : "Gerar relatório (PDF)"}</button>
-      {hasReport && <a className="btn btn-ghost" href={`/api/admin/users/${id}/pdf`}>Baixar último PDF</a>}
-      <label className="flex items-center gap-2 text-sm text-muted">Chamadas/dia
-        <input className="input !w-20 !py-1.5" type="number" min={0} max={10} placeholder="padrão" value={limit} onChange={(e) => setLimit(e.target.value)} onBlur={async () => { await post(`/api/admin/users/${id}`, { action: "calls_per_day", value: limit === "" ? null : Number(limit) }); router.refresh(); }} />
-      </label>
-      <button className="btn btn-ghost" onClick={async () => { if (status === "active" && !confirm("Suspender o acesso deste paciente?")) return; await post(`/api/admin/users/${id}`, { action: status === "active" ? "suspend" : "reactivate" }); router.refresh(); }}>{status === "active" ? "Suspender acesso" : "Reativar acesso"}</button>
-      {err && <span className="text-sm text-[#b4401f]">{err}</span>}
+    <div className="card space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn btn-primary" onClick={report} disabled={busy}>{busy ? "Gerando dossiê… (pode levar ~1 min)" : "Gerar dossiê completo (PDF)"}</button>
+        {hasReport && <a className="btn btn-ghost" href={`/api/admin/users/${id}/pdf?x=1${qs}`}>Baixar último dossiê</a>}
+        <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" className="accent-teal w-4 h-4" checked={transcripts} onChange={(e) => setTranscripts(e.target.checked)} />incluir transcrições completas</label>
+        {err && <span className="text-sm text-[#b4401f]">{err}</span>}
+      </div>
+      <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-line">
+        <label className="flex items-center gap-2 text-sm text-muted">Chamadas por dia
+          <input className="input !w-20 !py-1.5" type="number" min={0} max={10} placeholder="padrão" value={limit} onChange={(e) => setLimit(e.target.value)} onBlur={async () => { await post(`/api/admin/users/${id}`, { action: "calls_per_day", value: limit === "" ? null : Number(limit) }); router.refresh(); }} />
+        </label>
+        <button className="btn btn-ghost !py-1.5 text-sm" onClick={async () => { if (status === "active" && !confirm("Suspender o acesso deste paciente? Ele será desconectado.")) return; await post(`/api/admin/users/${id}`, { action: status === "active" ? "suspend" : "reactivate" }); router.refresh(); }}>{status === "active" ? "Suspender acesso" : "Reativar acesso"}</button>
+      </div>
     </div>
   );
 }

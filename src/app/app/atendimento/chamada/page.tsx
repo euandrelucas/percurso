@@ -11,9 +11,9 @@ export const metadata = { title: "Chamada" };
 
 export default async function Page() {
   const u = await requirePatient();
-  reapStale(u.id);
-  const a = getAgent(u.id)!;
-  const { available, resumable } = callAvailability(u);
+  await reapStale(u.id);
+  const a = (await getAgent(u.id))!;
+  const { available, resumable } = await callAvailability(u);
   if (!available) {
     return (
       <div className="card max-w-lg mx-auto text-center py-10">
@@ -26,7 +26,7 @@ export default async function Page() {
   return (
     <CallRoom
       agent={{ name: a.agent_name, avatar: parseAvatar(a.avatar), preferredName: a.preferred_name }}
-      first={!hasCompletedSession(u.id)}
+      first={!(await hasCompletedSession(u.id))}
       maxMinutes={config.sessionMaxMinutes()}
       resumable={resumable}
     />

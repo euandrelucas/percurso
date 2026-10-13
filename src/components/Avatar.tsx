@@ -1,117 +1,331 @@
 "use client";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Avatar as AvatarT } from "@/lib/prompts/options";
+
+// ---- utilidades de cor ---------------------------------------------------------------------------------------------
+const rgb = (hex: string): [number, number, number] => {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const toHex = (c: number[]) => "#" + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+/** Mistura `a` com `b` (t: 0..1). */
+const mix = (a: string, b: string, t: number) => {
+  const x = rgb(a), y = rgb(b);
+  return toHex(x.map((v, i) => v + (y[i] - v) * t));
+};
+const darken = (c: string, t: number) => mix(c, "#000000", t);
+const lighten = (c: string, t: number) => mix(c, "#ffffff", t);
+
+export const avatarBackground = (accent: string) => `radial-gradient(120% 90% at 50% 18%, ${lighten(accent, 0.28)}, ${accent} 52%, ${darken(accent, 0.55)} 135%)`;
 
 type Props = {
   avatar: AvatarT;
-  /** 0..1 — abertura da boca (nível de áudio) */
+  /** Nível de áudio 0..1 lido continuamente (sem re-render do pai). */
+  getLevel?: () => number;
   level?: number;
   speaking?: boolean;
   thinking?: boolean;
   className?: string;
-  /** sem fundo próprio (o contêiner pinta o fundo) */
+  /** Sem fundo próprio. */
   bare?: boolean;
+  framing?: "bust" | "face";
 };
 
-function shade(hex: string, amt: number) {
-  const n = parseInt(hex.slice(1), 16);
-  const c = (v: number) => Math.max(0, Math.min(255, v + amt));
-  return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
+/**
+ * Rosto ilustrado (SVG) com animações: respiração, piscar, olhar, balanço da cabeça ao falar e boca sincronizada
+ * ao nível de áudio. Personalizável: pele, estilo/cor do cabelo, óculos e cor do ambiente.
+ */
+export function Avatar({ avatar, getLevel, level = 0, speaking, thinking, className, bare, framing = "bust" }: Props) {
+  const uid = useId().replace(/:/g, "");
+  const [lvl, setLvl] = useState(level);
+  const smooth = useRef(0);
+  const getRef = useRef(getLevel);
+  getRef.current = getLevel;
+  const staticLevel = useRef(level);
+  staticLevel.current = speaking && !getLevel && level === 0 ? 0.35 : level;
+
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick);
+      if (t - last < 40) return;
+      last = t;
+      const target = getRef.current ? getRef.current() : staticLevel.current;
+      smooth.current += (target - smooth.current) * (target > smooth.current ? 0.6 : 0.3);
+      setLvl((p) => (Math.abs(smooth.current - p) > 0.015 ? smooth.current : p));
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const { skin, hair, hairColor, accessory, accent } = avatar;
+  const skinD = darken(skin, 0.14);
+  const skinDD = darken(skin, 0.3);
+  const skinL = lighten(skin, 0.1);
+  const lip = mix(darken(skin, 0.12), "#b8434f", 0.6);
+  const lipL = lighten(lip, 0.18);
+  const hD = darken(hairColor, 0.3);
+  const hL = lighten(hairColor, 0.22);
+  const shirt = mix(accent, "#1b2233", 0.45);
+  const shirtL = mix(accent, "#ffffff", 0.08);
+  const browC = hair === "hair-none" ? darken(skin, 0.5) : darken(hairColor, 0.12);
+
+  const o = Math.min(1, lvl * 1.3) * 18; // abertura da boca (px no viewBox)
+  const talking = lvl > 0.06 || speaking;
+  const blinkDelay = `${(uid.length % 5) * 0.7}s`;
+
+  const eye = (cx: number, side: 1 | -1) => {
+    const d = `M${cx - 26} 176 Q${cx} 154 ${cx + 26} 176 Q${cx} 192 ${cx - 26} 176 Z`;
+    const id = `eye${uid}${side}`;
+    const gaze = thinking ? `translate(${side * -1 - 2}px,-4px)` : "translate(0,0)";
+    return (
+      <g key={side}>
+        <clipPath id={id}><path d={d} /></clipPath>
+        <path d={d} fill="#fbfbfd" />
+        <g clipPath={`url(#${id})`}>
+          <g style={{ transform: gaze, transition: "transform .3s ease" }} className={thinking ? "" : "av-wander"}>
+            <circle cx={cx} cy={174} r={13} fill="#6b4328" />
+            <circle cx={cx} cy={174} r={13} fill="none" stroke="#3a2412" strokeWidth="2" />
+            <circle cx={cx} cy={174} r={6.2} fill="#120c0a" />
+            <circle cx={cx + 4.5} cy={169.5} r={3.2} fill="#fff" />
+            <circle cx={cx - 4} cy={179} r={1.6} fill="#fff" opacity=".8" />
+          </g>
+          <path d={`M${cx - 30} 150 Q${cx} 152 ${cx + 30} 150 L${cx + 30} 164 Q${cx} 158 ${cx - 30} 164 Z`} fill={darken(skin, 0.16)} opacity=".35" />
+          {/* pálpebra: desliza sobre o olho ao piscar */}
+          <g className="av-lid" style={{ animationDelay: blinkDelay }}>
+            <rect x={cx - 34} y={140} width="68" height="44" fill={skin} />
+            <path d={`M${cx - 27} 183 Q${cx} 190 ${cx + 27} 183`} stroke="#2a1a16" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+          </g>
+        </g>
+        <path d={`M${cx - 28} 177 Q${cx} 150 ${cx + 28} 177`} stroke="#2a1a16" strokeWidth="4.2" fill="none" strokeLinecap="round" />
+        <path d={`M${cx + side * -27} 176 L${cx + side * -33} 171`} stroke="#2a1a16" strokeWidth="3.2" strokeLinecap="round" />
+        <path d={`M${cx - 22} 184 Q${cx} 193 ${cx + 22} 184`} stroke={skinDD} strokeWidth="1.8" fill="none" opacity=".45" strokeLinecap="round" />
+        <path d={`M${cx - 24} 160 Q${cx} 144 ${cx + 24} 160`} stroke={skinD} strokeWidth="2.2" fill="none" opacity=".55" strokeLinecap="round" />
+      </g>
+    );
+  };
+
+  // ---- cabelo ---------------------------------------------------------------------------------------------------------
+  const hairBack = () => {
+    switch (hair) {
+      case "hair-long":
+        return <path d="M100 168 C92 68 148 40 200 40 C252 40 308 68 300 168 L316 340 Q200 372 84 340 Z" fill={hD} />;
+      case "hair-curly":
+        return (
+          <g fill={hD}>
+            <ellipse cx="200" cy="148" rx="112" ry="108" />
+            {[[96, 196], [304, 196], [88, 168], [312, 168], [104, 222], [296, 222]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="26" />)}
+          </g>
+        );
+      case "hair-bun":
+        return <circle cx="200" cy="50" r="32" fill={hD} />;
+      default:
+        return null;
+    }
+  };
+  const hairFront = () => {
+    switch (hair) {
+      case "hair-short":
+        return (
+          <g>
+            <path d="M110 176 C98 92 146 46 204 46 C264 46 306 94 290 176 C286 148 278 128 262 114 C244 104 224 98 206 100 C180 104 150 116 134 140 C124 152 116 164 110 176 Z" fill={hairColor} />
+            <path d="M138 120 C150 96 176 82 206 82 C232 82 256 94 268 114" stroke={hL} strokeWidth="5" fill="none" strokeLinecap="round" opacity=".5" />
+            <path d="M110 176 C114 160 122 150 134 140 C128 154 124 166 124 184 Z" fill={hD} />
+          </g>
+        );
+      case "hair-long":
+        return (
+          <g>
+            <path d="M110 178 C98 92 146 44 202 44 C262 44 306 94 290 178 C284 150 270 126 248 112 C232 106 216 104 202 104 C186 106 168 108 152 116 C130 128 118 152 110 178 Z" fill={hairColor} />
+            <path d="M140 118 C152 92 178 78 208 78 C236 78 258 92 270 112" stroke={hL} strokeWidth="5" fill="none" strokeLinecap="round" opacity=".45" />
+            <path d="M110 176 C102 226 96 282 90 338 L128 338 C126 282 130 226 128 170 L120 160 Z" fill={hairColor} />
+            <path d="M290 176 C298 226 304 282 310 338 L272 338 C274 282 270 226 272 170 L280 160 Z" fill={hairColor} />
+            <path d="M112 200 C106 250 102 290 100 332" stroke={hL} strokeWidth="4" fill="none" strokeLinecap="round" opacity=".35" />
+          </g>
+        );
+      case "hair-curly":
+        return (
+          <g>
+            {[[132, 112, 24], [160, 92, 26], [194, 84, 27], [228, 90, 26], [260, 106, 25], [284, 134, 22], [118, 138, 20], [176, 104, 20], [214, 100, 20], [246, 118, 18], [146, 122, 18]].map(([x, y, r], i) => (
+              <circle key={i} cx={x} cy={y} r={r} fill={i % 3 === 0 ? hL : hairColor} />
+            ))}
+            {[[136, 100], [172, 88], [212, 84], [250, 96]].map(([x, y], i) => <circle key={`h${i}`} cx={x} cy={y} r="8" fill={hL} opacity=".35" />)}
+          </g>
+        );
+      case "hair-bun":
+        return (
+          <g>
+            <path d="M110 176 C100 96 146 52 200 52 C254 52 302 96 290 176 C286 146 272 118 246 106 C228 100 212 100 200 108 C188 100 172 100 154 106 C128 118 114 146 110 176 Z" fill={hairColor} />
+            <path d="M150 100 C166 84 184 78 200 78 C218 78 236 84 252 100" stroke={hL} strokeWidth="5" fill="none" strokeLinecap="round" opacity=".45" />
+            <path d="M176 70 Q200 58 224 70" stroke={hD} strokeWidth="5" fill="none" strokeLinecap="round" />
+          </g>
+        );
+      default:
+        return <path d="M122 120 C130 84 164 68 200 68 C236 68 270 84 278 120 C262 98 232 88 200 88 C168 88 138 98 122 120 Z" fill={skinD} opacity=".22" />;
+    }
+  };
+
+  const glasses = () => {
+    if (accessory === "none") return null;
+    const frame = "#1f2633";
+    return (
+      <g fill="none" stroke={frame} strokeWidth="4" strokeLinecap="round">
+        {accessory === "glasses-round" ? (
+          <>
+            <circle cx="158" cy="174" r="31" fill="#ffffff" fillOpacity=".07" />
+            <circle cx="242" cy="174" r="31" fill="#ffffff" fillOpacity=".07" />
+          </>
+        ) : (
+          <>
+            <rect x="126" y="152" width="64" height="46" rx="12" fill="#ffffff" fillOpacity=".07" />
+            <rect x="210" y="152" width="64" height="46" rx="12" fill="#ffffff" fillOpacity=".07" />
+          </>
+        )}
+        <path d="M189 172 Q200 164 211 172" />
+        <path d="M127 170 L112 164" />
+        <path d="M273 170 L288 164" />
+        <path d="M140 160 Q148 155 156 157" stroke="#fff" strokeWidth="2.5" opacity=".55" />
+      </g>
+    );
+  };
+
+  // ---- boca ---------------------------------------------------------------------------------------------------------------
+  const mouth = () => {
+    const smile = thinking ? 0 : 1;
+    const corner = 238 - smile * 1.5;
+    const upper = `M172 ${corner} Q186 ${229 - o * 0.12} 200 ${232.5 - o * 0.16} Q214 ${229 - o * 0.12} 228 ${corner} Q214 ${237 - o * 0.1} 200 ${237.5 - o * 0.1} Q186 ${237 - o * 0.1} 172 ${corner} Z`;
+    const lower = `M174 ${corner + 1} Q200 ${244 + o * 0.9} 226 ${corner + 1} Q214 ${253 + o} 200 ${254 + o} Q186 ${253 + o} 174 ${corner + 1} Z`;
+    const inner = `M174 ${corner + 0.5} Q200 ${237 - o * 0.1} 226 ${corner + 0.5} Q216 ${242 + o} 200 ${243 + o} Q184 ${242 + o} 174 ${corner + 0.5} Z`;
+    const open = o > 1.2;
+    return (
+      <g>
+        {open && (
+          <>
+            <clipPath id={`m${uid}`}><path d={inner} /></clipPath>
+            <path d={inner} fill="#4f1621" />
+            <g clipPath={`url(#m${uid})`}>
+              {o > 4 && <path d={`M176 237 Q200 ${234 - o * 0.1} 224 237 L224 ${237 + Math.min(8, o * 0.5)} Q200 ${239 + Math.min(8, o * 0.5)} 176 ${237 + Math.min(8, o * 0.5)} Z`} fill="#fbfaf8" />}
+              <ellipse cx="200" cy={244 + o * 0.9} rx={12 + o * 0.15} ry={Math.max(2, o * 0.3)} fill="#c4606c" />
+            </g>
+          </>
+        )}
+        <path d={lower} fill={lip} />
+        <path d={`M184 ${246 + o} Q200 ${250 + o} 216 ${246 + o}`} stroke={lipL} strokeWidth="2.2" fill="none" strokeLinecap="round" opacity=".55" />
+        <path d={upper} fill={darken(lip, 0.1)} />
+        {!open && <path d={`M174 ${corner + 0.5} Q200 ${239.5} 226 ${corner + 0.5}`} stroke={darken(lip, 0.45)} strokeWidth="1.6" fill="none" strokeLinecap="round" />}
+        {smile > 0 && o < 6 && (
+          <>
+            <path d="M168 236 Q165 241 170 244" stroke={skinDD} strokeWidth="2" fill="none" opacity=".35" strokeLinecap="round" />
+            <path d="M232 236 Q235 241 230 244" stroke={skinDD} strokeWidth="2" fill="none" opacity=".35" strokeLinecap="round" />
+          </>
+        )}
+      </g>
+    );
+  };
+
+  // Enquadramento responsivo: o rosto fica no terço superior/central de telas altas (celular) e centrado em telas largas.
+  const box = useRef<HTMLDivElement>(null);
+  const [vbAuto, setVbAuto] = useState("0 0 400 400");
+  useEffect(() => {
+    const el = box.current;
+    if (!el || framing === "face") return;
+    const fit = () => {
+      const a = el.clientWidth / Math.max(1, el.clientHeight);
+      let w: number, h: number, y: number;
+      if (a >= 340 / 380) {
+        h = 380;
+        w = h * a;
+        y = 24;
+      } else {
+        w = 340;
+        h = w / a;
+        y = 215 - h * 0.4;
+      }
+      setVbAuto(`${200 - w / 2} ${y} ${w} ${h}`);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [framing]);
+  const vb = framing === "face" ? "90 56 220 220" : vbAuto;
+
+  return (
+    <div ref={box} className={className} style={{ background: bare ? undefined : avatarBackground(accent), position: "relative", overflow: "hidden" }}>
+      <svg viewBox={vb} role="img" aria-label="Rosto do agente" preserveAspectRatio="xMidYMid meet" style={{ width: "100%", height: "100%", display: "block" }}>
+        <defs>
+          <linearGradient id={`face${uid}`} x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stopColor={skinD} stopOpacity=".38" />
+            <stop offset=".22" stopColor={skinD} stopOpacity="0" />
+            <stop offset=".78" stopColor={skinD} stopOpacity="0" />
+            <stop offset="1" stopColor={skinD} stopOpacity=".5" />
+          </linearGradient>
+          <linearGradient id={`shirt${uid}`} x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor={shirtL} />
+            <stop offset="1" stopColor={darken(shirt, 0.25)} />
+          </linearGradient>
+          <filter id={`blur${uid}`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6" /></filter>
+        </defs>
+
+        {!bare && (
+          <>
+            <circle cx="70" cy="70" r="120" fill="#fff" opacity=".07" />
+            <circle cx="350" cy="360" r="140" fill="#000" opacity=".08" />
+          </>
+        )}
+
+        {hairBack()}
+
+        <g className="av-body">
+          {/* ombros e camiseta */}
+          <path d="M28 760 L28 404 C34 338 90 306 158 296 Q200 318 242 296 C310 306 366 338 372 404 L372 760 Z" fill={`url(#shirt${uid})`} />
+          <path d="M158 296 Q200 326 242 296" stroke={lighten(shirt, 0.25)} strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M70 330 Q60 366 56 404" stroke={darken(shirt, 0.3)} strokeWidth="3" fill="none" opacity=".35" />
+          {/* pescoço */}
+          <path d="M168 232 L168 292 Q200 322 232 292 L232 232 Z" fill={skin} />
+          <path d="M168 248 Q200 284 232 248 L232 268 Q200 302 168 268 Z" fill={skinDD} opacity=".38" />
+          <path d="M158 296 Q200 330 242 296 Q200 312 158 296 Z" fill={skin} />
+
+          <g className={talking ? "av-head av-sway" : "av-head"}>
+            {/* orelhas */}
+            <ellipse cx="114" cy="178" rx="11" ry="19" fill={skinD} />
+            <ellipse cx="286" cy="178" rx="11" ry="19" fill={skinD} />
+            <ellipse cx="114" cy="180" rx="5" ry="11" fill={skinDD} opacity=".35" />
+            <ellipse cx="286" cy="180" rx="5" ry="11" fill={skinDD} opacity=".35" />
+            {/* rosto */}
+            <path d="M200 72 C146 72 114 112 114 168 C114 220 140 264 200 270 C260 264 286 220 286 168 C286 112 254 72 200 72 Z" fill={skin} />
+            <path d="M200 72 C146 72 114 112 114 168 C114 220 140 264 200 270 C260 264 286 220 286 168 C286 112 254 72 200 72 Z" fill={`url(#face${uid})`} />
+            <ellipse cx="200" cy="120" rx="46" ry="30" fill={skinL} opacity=".28" filter={`url(#blur${uid})`} />
+            {/* bochechas */}
+            <ellipse cx="140" cy="216" rx="22" ry="13" fill="#e8757d" opacity=".3" filter={`url(#blur${uid})`} />
+            <ellipse cx="260" cy="216" rx="22" ry="13" fill="#e8757d" opacity=".3" filter={`url(#blur${uid})`} />
+            {/* olhos e sobrancelhas */}
+            {eye(158, 1)}
+            {eye(242, -1)}
+            <g style={{ transform: thinking ? "translateY(-5px)" : talking ? `translateY(${-lvl * 2}px)` : "none", transition: "transform .25s ease" }} stroke={browC} strokeWidth="6.5" fill="none" strokeLinecap="round">
+              <path d={thinking ? "M128 150 Q150 130 184 140" : "M128 152 Q152 134 184 144"} />
+              <path d={thinking ? "M216 140 Q250 130 272 150" : "M216 144 Q248 134 272 152"} />
+            </g>
+            {/* nariz */}
+            <ellipse cx="198" cy="194" rx="5" ry="20" fill={skinL} opacity=".2" />
+            <path d="M207 192 Q215 212 205 221" stroke={skinDD} strokeWidth="3" fill="none" strokeLinecap="round" opacity=".32" />
+            <path d="M189 223 Q200 231 211 223" stroke={skinDD} strokeWidth="3.4" fill="none" strokeLinecap="round" opacity=".6" />
+            <ellipse cx="192" cy="224" rx="3" ry="1.7" fill={skinDD} opacity=".5" />
+            <ellipse cx="208" cy="224" rx="3" ry="1.7" fill={skinDD} opacity=".5" />
+            {mouth()}
+            {/* sombra suave sob o lábio e queixo */}
+            <ellipse cx="200" cy="262" rx="22" ry="5" fill={skinDD} opacity=".14" />
+            {hairFront()}
+            {glasses()}
+          </g>
+        </g>
+      </svg>
+    </div>
+  );
 }
 
-/** Rosto ilustrado: piscar, respiração e boca sincronizada ao nível de áudio. */
-export function Avatar({ avatar, level = 0, speaking, thinking, className, bare }: Props) {
-  const { skin, hair, hairColor, accessory, accent } = avatar;
-  const mouthOpen = Math.min(1, level);
-  const my = 3 + mouthOpen * 11;
-  const mouth = speaking || mouthOpen > 0.02
-    ? `M86 ${126 - my / 4} Q100 ${124 + my} 114 ${126 - my / 4} Q100 ${126 + my * 1.1} 86 ${126 - my / 4}Z`
-    : thinking
-      ? "M90 128 Q100 127 110 129"
-      : "M88 126 Q100 134 112 126";
-  const dark = shade(skin, -38);
-  const blush = shade(skin, -14);
-  const gid = `g${accent.slice(1)}`;
-  return (
-    <svg viewBox="0 0 200 200" className={className} role="img" aria-label="Rosto do agente">
-      <defs>
-        <radialGradient id={gid} cx="50%" cy="35%" r="80%">
-          <stop offset="0%" stopColor={shade(accent, 70)} />
-          <stop offset="100%" stopColor={shade(accent, -30)} />
-        </radialGradient>
-      </defs>
-      {!bare && (
-        <>
-          <rect width="200" height="200" fill={`url(#${gid})`} />
-          <circle cx="40" cy="30" r="60" fill="#fff" opacity=".07" />
-          <circle cx="170" cy="180" r="70" fill="#000" opacity=".07" />
-        </>
-      )}
-      <g className="av-body">
-        {hair === "hair-long" && <path d="M46 98 C38 30 162 30 154 98 L160 190 L40 190Z" fill={hairColor} />}
-        {/* ombros */}
-        <path d="M24 200 C28 168 62 156 100 156 C138 156 172 168 176 200Z" fill={shade(accent, -55)} />
-        <path d="M84 158 L100 176 L116 158Z" fill="#fff" opacity=".85" />
-        {/* pescoço */}
-        <rect x="86" y="130" width="28" height="32" rx="12" fill={dark} />
-        <g className={`av-head ${speaking ? "speaking" : ""}`}>
-          {/* orelhas */}
-          <ellipse cx="55" cy="96" rx="7" ry="11" fill={dark} />
-          <ellipse cx="145" cy="96" rx="7" ry="11" fill={dark} />
-          {/* cabeça */}
-          <ellipse cx="100" cy="92" rx="45" ry="52" fill={skin} />
-          {/* cabelo (frente) */}
-          {hair === "hair-short" && <path d="M54 92 C48 42 82 34 100 34 C126 34 154 46 146 92 C142 72 124 62 100 62 C76 62 60 74 54 92Z" fill={hairColor} />}
-          {hair === "hair-long" && <path d="M54 94 C46 40 82 32 100 32 C128 32 154 44 146 94 C138 66 118 58 100 58 C80 58 64 68 54 94Z" fill={hairColor} />}
-          {hair === "hair-bun" && (
-            <>
-              <circle cx="100" cy="26" r="17" fill={hairColor} />
-              <path d="M54 92 C48 42 82 36 100 36 C126 36 154 46 146 92 C142 72 124 62 100 62 C76 62 60 74 54 92Z" fill={hairColor} />
-            </>
-          )}
-          {hair === "hair-curly" && (
-            <g fill={hairColor}>
-              {[[58, 70, 17], [74, 50, 18], [100, 42, 19], [126, 50, 18], [142, 70, 17], [52, 92, 12], [148, 92, 12], [88, 54, 16], [112, 54, 16]].map(([x, y, r], i) => (
-                <circle key={i} cx={x} cy={y} r={r} />
-              ))}
-            </g>
-          )}
-          {/* sobrancelhas */}
-          <path d={thinking ? "M72 70 Q82 64 92 69" : "M72 72 Q82 67 92 71"} stroke={hair === "hair-none" ? dark : hairColor} strokeWidth="3.2" fill="none" strokeLinecap="round" />
-          <path d={thinking ? "M108 69 Q118 62 128 68" : "M108 71 Q118 67 128 72"} stroke={hair === "hair-none" ? dark : hairColor} strokeWidth="3.2" fill="none" strokeLinecap="round" />
-          {/* olhos */}
-          <g>
-            <ellipse className="av-eye" cx="82" cy="88" rx="5.2" ry="6.2" fill="#1b1b1f" />
-            <ellipse className="av-eye b2" cx="118" cy="88" rx="5.2" ry="6.2" fill="#1b1b1f" />
-            <circle cx="84" cy="86" r="1.6" fill="#fff" />
-            <circle cx="120" cy="86" r="1.6" fill="#fff" />
-          </g>
-          {/* nariz e bochechas */}
-          <path d="M100 96 Q96 108 101 110" stroke={dark} strokeWidth="2.2" fill="none" strokeLinecap="round" opacity=".7" />
-          <ellipse cx="72" cy="110" rx="9" ry="5.5" fill={blush} opacity=".45" />
-          <ellipse cx="128" cy="110" rx="9" ry="5.5" fill={blush} opacity=".45" />
-          {/* boca */}
-          <path d={mouth} fill={speaking || mouthOpen > 0.02 ? "#7a2430" : "none"} stroke="#7a2430" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          {/* óculos */}
-          {accessory === "glasses-round" && (
-            <g fill="none" stroke="#1f2937" strokeWidth="2.6">
-              <circle cx="82" cy="88" r="14" />
-              <circle cx="118" cy="88" r="14" />
-              <path d="M96 88 L104 88" />
-              <path d="M68 86 L58 84" />
-              <path d="M132 86 L142 84" />
-            </g>
-          )}
-          {accessory === "glasses-square" && (
-            <g fill="none" stroke="#1f2937" strokeWidth="2.8">
-              <rect x="66" y="76" width="30" height="23" rx="5" />
-              <rect x="104" y="76" width="30" height="23" rx="5" />
-              <path d="M96 86 L104 86" />
-              <path d="M66 84 L58 82" />
-              <path d="M134 84 L142 82" />
-            </g>
-          )}
-        </g>
-      </g>
-    </svg>
-  );
+/** Miniatura (rosto enquadrado). */
+export function AvatarThumb({ avatar, className }: { avatar: AvatarT; className?: string; size?: number }) {
+  return <Avatar avatar={avatar} framing="face" className={className} />;
 }

@@ -1,0 +1,29 @@
+# Proxy reverso com HTTPS automático (Let's Encrypt) quando SITE_ADDRESS é um domínio.
+# Local: SITE_ADDRESS=http://localhost  (sem TLS).
+{
+	# Não coletar telemetria nem expor versão
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+{$SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	# Limite de corpo (as rotas de API só recebem JSON/SDP pequenos)
+	request_body {
+		max_size 256KB
+	}
+
+	header {
+		-Server
+		-X-Powered-By
+	}
+
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {remote_host}
+		health_uri /api/health
+		health_interval 15s
+	}
+}

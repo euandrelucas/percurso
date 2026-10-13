@@ -2,132 +2,140 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Stat } from "@/components/ui";
 import { AlertActions, PatientActions, ReanalyzeButton } from "@/components/AdminWidgets";
-import { all, get } from "@/lib/db";
-import { activeGoals, allExercises, allSessions, getAgent, getMemory, moodHistory, parseAnalysis, recentChat, screenings, sessionMessages } from "@/lib/store";
-import { latestReport } from "@/lib/analysis";
+import { LineChart } from "@/components/charts";
+import { requireAdmin } from "@/lib/auth";
+import { audit, prisma } from "@/lib/prisma";
+import { buildDossier } from "@/lib/report-data";
+import { getReport, listAlerts } from "@/lib/store";
 import { buildChatSystem, buildVoiceInstructions } from "@/lib/prompts";
-import { fmtDate, fmtDateTime, fmtDuration } from "@/lib/time";
+import { fmtDateTime } from "@/lib/time";
 import { config } from "@/lib/config";
-import { TONES, STYLES, VOICES } from "@/lib/prompts/options";
-import { SCALE_OPTIONS } from "@/lib/screening";
+import { AvatarThumb } from "@/components/Avatar";
+import type { ReportData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Paciente" };
 
-const Sec = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="card"><h2 className="text-xl font-semibold mb-3">{title}</h2>{children}</section>
+const Sec = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => (
+  <section id={id} className="card scroll-mt-6"><h2 className="text-xl font-semibold mb-3">{title}</h2>{children}</section>
 );
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
   const id = Number((await params).id);
-  const u = get<{ id: number; name: string; email: string; status: string; onboarded: number; created_at: string; consent_at: string | null; calls_per_day: number | null }>("SELECT * FROM users WHERE id = ? AND role = 'patient'", id);
-  if (!u) notFound();
-  const agent = getAgent(id);
-  const sessions = allSessions(id);
-  const scr = screenings(id);
-  const mem = getMemory(id);
-  const moods = moodHistory(id, 40);
-  const goals = activeGoals(id);
-  const exs = allExercises(id);
-  const alerts = all<{ id: number; level: number; source: string; excerpt: string; status: string; note: string | null; created_at: string }>("SELECT * FROM alerts WHERE user_id = ? ORDER BY id DESC", id);
-  const report = latestReport(id);
-  const chat = recentChat(id, 40);
-  const done = sessions.filter((s) => s.status === "ended" && (s.duration_sec ?? 0) >= 180);
-  const memEmpty = !mem.queixa_principal && !mem.contexto_de_vida;
+  if (!Number.isInteger(id)) notFound();
+  const exists = await prisma.user.findFirst({ where: { id, role: "patient" }, select: { id: true, status: true, calls_per_day: true } });
+  if (!exists) notFound();
+  await audit(`admin:${admin.id}`, "patient.viewed", id); // todo acesso de admin a dados de paciente fica registrado
 
-  const nextKind = done.some((s) => s.kind === "triagem") ? "acompanhamento" : "triagem";
+  const [d, alerts, report] = await Promise.all([buildDossier(id), listAlerts({ user_id: id }, 100), getReport<ReportData>(id)]);
+  const doneSessions = d.sessions.filter((s) => s.status === "ended" && s.durationSec >= 180);
+  const nextKind = doneSessions.some((s) => s.kind === "triagem") ? "acompanhamento" : "triagem";
   let promptPreview = "";
-  if (agent) {
+  let chatLen = 0;
+  if (d.agent) {
     try {
-      promptPreview = buildVoiceInstructions(id, { sessionNumber: sessions.length + 1, kind: nextKind, maxMinutes: config.sessionMaxMinutes() });
+      promptPreview = await buildVoiceInstructions(id, { sessionNumber: d.sessions.length + 1, kind: nextKind, maxMinutes: config.sessionMaxMinutes() });
+      chatLen = (await buildChatSystem(id, 0)).length;
     } catch {
-      promptPreview = "";
+      /* sem agente */
     }
   }
-  const chatPrompt = agent ? buildChatSystem(id, 0).length : 0;
+  const mem = d.memory;
+  const memEmpty = !mem.queixa_principal && !mem.contexto_de_vida;
+  const moodPoints = d.moods.slice(-30).map((m) => ({ d: m.iso, v: m.score }));
+  const nav = [["resumo", "Resumo"], ["alertas", "Alertas"], ["triagem", "Triagem"], ["memoria", "Memória"], ["metas", "Metas"], ["sessoes", "Sessões"], ["chat", "Chat"], ["prompt", "Prompt"]];
 
   return (
     <div className="space-y-6 max-w-4xl">
       <Link href="/admin/pacientes" className="text-sm text-muted">← Pacientes</Link>
-      <div>
-        <div className="flex items-center gap-3 flex-wrap"><h1 className="text-4xl font-semibold">{u.name}</h1>{u.status !== "active" && <Badge tone="alert">suspenso</Badge>}</div>
-        <p className="text-muted mt-1">{u.email} · cadastro em {fmtDate(u.created_at)}{u.consent_at ? ` · consentimento em ${fmtDate(u.consent_at)}` : ""}</p>
+      <div className="flex items-center gap-4">
+        {d.agent && <AvatarThumb avatar={d.agent.avatar!} size={160} className="w-16 h-16 rounded-2xl shrink-0" />}
+        <div>
+          <div className="flex items-center gap-3 flex-wrap"><h1 className="text-4xl font-semibold">{d.patient.name}</h1><span className="text-muted">#{d.patient.id}</span>{d.patient.status !== "active" && <Badge tone="alert">suspenso</Badge>}</div>
+          <p className="text-muted mt-1">{d.patient.email} · cadastro em {d.patient.registeredAt}{d.patient.consentAt ? ` · consentimento em ${d.patient.consentAt}` : " · SEM CONSENTIMENTO"}</p>
+        </div>
       </div>
 
-      <PatientActions id={id} status={u.status} callsPerDay={u.calls_per_day} hasReport={!!report} />
+      <nav className="flex flex-wrap gap-2 text-sm sticky top-0 z-10 bg-sand/90 backdrop-blur py-2" aria-label="Seções">{nav.map(([h, l]) => <a key={h} href={`#${h}`} className="chip">{l}</a>)}</nav>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Sessões" value={done.length} />
-        <Stat label="Tempo total" value={fmtDuration(done.reduce((a, s) => a + (s.duration_sec ?? 0), 0))} />
-        <Stat label="Último humor" value={moods.at(-1)?.score ?? "—"} sub="0 a 10" />
-        <Stat label="Alertas abertos" value={alerts.filter((a) => a.status === "aberto").length} tone={alerts.some((a) => a.status === "aberto") ? "alert" : "default"} />
+      <PatientActions id={id} status={exists.status} callsPerDay={exists.calls_per_day} hasReport={!!report} />
+      {report && <p className="text-sm text-muted -mt-3">Último dossiê gerado em {fmtDateTime(report.created_at)}.</p>}
+
+      <div id="resumo" className="grid grid-cols-2 md:grid-cols-4 gap-3 scroll-mt-6">
+        <Stat label="Sessões de voz" value={d.totals.sessions} sub={`${d.totals.minutes} min no total`} />
+        <Stat label="Mensagens (chat)" value={d.totals.chatMessages} />
+        <Stat label="Último humor" value={d.moods.at(-1)?.score ?? "—"} sub="0 a 10" />
+        <Stat label="Alertas abertos" value={alerts.filter((a) => a.status === "aberto").length} tone={alerts.some((a) => a.status === "aberto") ? "alert" : "default"} sub={`${alerts.length} no total`} />
       </div>
 
-      {alerts.length > 0 && (
-        <Sec title="Alertas de risco">
-          <ul className="space-y-3">
-            {alerts.map((a) => (
-              <li key={a.id} className="rounded-xl border border-line p-3">
-                <div className="flex items-center gap-2 flex-wrap"><Badge tone={a.level >= 3 ? "alert" : "warn"}>nível {a.level}</Badge><Badge>{a.source}</Badge><Badge tone={a.status === "aberto" ? "alert" : "good"}>{a.status.replace("_", " ")}</Badge><span className="text-xs text-muted ml-auto">{fmtDateTime(a.created_at)}</span></div>
-                <p className="text-sm text-ink-soft mt-1.5">{a.excerpt}</p>
-                {a.note && <p className="text-xs text-muted mt-1">Nota: {a.note}</p>}
-                <AlertActions id={a.id} status={a.status} />
-              </li>
-            ))}
-          </ul>
+      <Sec id="humor" title="Evolução do humor"><LineChart points={moodPoints} label="Evolução do humor" /></Sec>
+
+      <Sec id="alertas" title="Alertas de risco">
+        {!alerts.length && <p className="text-sm text-muted">Nenhum alerta registrado.</p>}
+        <ul className="space-y-3">
+          {alerts.map((a) => (
+            <li key={a.id} className="rounded-xl border border-line p-3">
+              <div className="flex items-center gap-2 flex-wrap"><Badge tone={a.level >= 3 ? "alert" : "warn"}>nível {a.level}</Badge><Badge>{a.source}</Badge><Badge tone={a.status === "aberto" ? "alert" : "good"}>{a.status.replace("_", " ")}</Badge><span className="text-xs text-muted ml-auto">{fmtDateTime(a.created_at)}</span></div>
+              <p className="text-sm text-ink-soft mt-1.5">{a.excerpt}</p>
+              {a.note && <p className="text-xs text-muted mt-1">Nota: {a.note}</p>}
+              <AlertActions id={a.id} status={a.status} />
+            </li>
+          ))}
+        </ul>
+      </Sec>
+
+      {d.agent && (
+        <Sec id="agente" title="Agente escolhido pelo paciente">
+          <p className="text-sm text-ink-soft"><strong>{d.agent.name}</strong> · voz {d.agent.voice} · tom {d.agent.tone} · estilo {d.agent.style}. Chama o paciente de “{d.agent.preferredName}”.</p>
+          {d.agent.aboutMe && <p className="text-sm mt-2"><span className="text-muted">Sobre si:</span> {d.agent.aboutMe}</p>}
+          {d.agent.goalHint && <p className="text-sm mt-1"><span className="text-muted">Expectativa:</span> {d.agent.goalHint}</p>}
+          {d.agent.topics && <p className="text-sm mt-1"><span className="text-muted">Assuntos:</span> {d.agent.topics}</p>}
+          {d.agent.boundaries && <p className="text-sm mt-1"><span className="text-muted">Prefere evitar:</span> {d.agent.boundaries}</p>}
         </Sec>
       )}
 
-      {agent && (
-        <Sec title="Agente escolhido pelo paciente">
-          <p className="text-sm text-ink-soft"><strong>{agent.agent_name}</strong> · voz {VOICES.find((v) => v.id === agent.voice)?.label} · tom {TONES[agent.tone as keyof typeof TONES]?.label} · estilo {STYLES[agent.style as keyof typeof STYLES]?.label}. Chama o paciente de “{agent.preferred_name}”.</p>
-          {agent.about_me && <p className="text-sm mt-2"><span className="text-muted">Sobre si:</span> {agent.about_me}</p>}
-          {agent.goal_hint && <p className="text-sm mt-1"><span className="text-muted">Expectativa:</span> {agent.goal_hint}</p>}
-          {agent.topics && <p className="text-sm mt-1"><span className="text-muted">Assuntos:</span> {agent.topics}</p>}
-          {agent.boundaries && <p className="text-sm mt-1"><span className="text-muted">Prefere evitar:</span> {agent.boundaries}</p>}
-        </Sec>
-      )}
-
-      <Sec title="Triagem inicial">
-        {scr.length ? (
+      <Sec id="triagem" title="Triagem inicial">
+        {d.screenings.length ? (
           <ul className="text-sm space-y-1.5">
-            {scr.map((s, i) => (
+            {d.screenings.map((s, i) => (
               <li key={i} className="flex gap-2 items-center flex-wrap">
-                <strong className="uppercase w-24">{s.kind === "seguranca" ? "Segurança" : s.kind}</strong>
-                {s.kind === "seguranca" ? <span>{s.score ? "Respondeu SIM a pensamentos de se machucar" : "Respondeu não"}</span> : <span>escore {s.score}/6 {s.flagged ? <Badge tone="warn">acima do ponto de atenção (≥3)</Badge> : null} <span className="text-muted">({(JSON.parse(s.answers) as number[]).map((a) => SCALE_OPTIONS[a]).join(" · ")})</span></span>}
-                <span className="text-muted ml-auto text-xs">{fmtDate(s.created_at)}</span>
+                <strong className="w-28">{s.kind === "seguranca" ? "Segurança" : s.kind.toUpperCase()}</strong>
+                {s.kind === "seguranca" ? <span>{s.flagged ? <Badge tone="alert">respondeu SIM a pensamentos de se machucar</Badge> : "respondeu não"}</span> : <span>escore {s.score}/6 {s.flagged ? <Badge tone="warn">≥ 3: ponto de atenção</Badge> : null} <span className="text-muted">({s.answers.join(" · ")})</span></span>}
+                <span className="text-muted ml-auto text-xs">{s.date}</span>
               </li>
             ))}
           </ul>
         ) : <p className="text-muted text-sm">Sem dados.</p>}
       </Sec>
 
-      <Sec title="Contexto do caso (memória do agente)">
+      <Sec id="memoria" title="Contexto do caso (memória do agente)">
         {memEmpty ? <p className="text-muted text-sm">Ainda vazio — será preenchido após a primeira sessão.</p> : (
           <dl className="text-sm space-y-2">
             {([["Queixa principal", mem.queixa_principal], ["Contexto de vida", mem.contexto_de_vida], ["Histórico relevante", mem.historico_relevante], ["Rede de apoio", mem.rede_de_apoio], ["Comunicação", mem.preferencias_de_comunicacao]] as const).filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="text-muted">{k}</dt><dd>{v}</dd></div>)}
             {([["Temas recorrentes", mem.temas_recorrentes], ["Forças e recursos", mem.forcas_e_recursos], ["O que funciona", mem.o_que_funciona], ["O que evitar", mem.o_que_evitar], ["Padrões (hipóteses da IA)", mem.padroes]] as const).filter(([, v]) => v.length).map(([k, v]) => <div key={k}><dt className="text-muted">{k}</dt><dd><ul className="list-disc pl-5">{v.map((x) => <li key={x}>{x}</li>)}</ul></dd></div>)}
           </dl>
         )}
+        {d.memoryVersions.length > 0 && <p className="text-xs text-muted mt-3">{d.memoryVersions.length} versão(ões) arquivada(s) · atual v{d.memoryVersions.at(-1)?.version}</p>}
       </Sec>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Sec title="Metas">{goals.length ? <ul className="text-sm space-y-1.5">{goals.map((g) => <li key={g.id} className="flex gap-2"><Badge tone={g.status === "atingida" ? "good" : "default"}>{g.status}</Badge>{g.title}</li>)}</ul> : <p className="text-sm text-muted">Nenhuma meta.</p>}</Sec>
-        <Sec title="Exercícios">{exs.length ? <ul className="text-sm space-y-2">{exs.map((e) => <li key={e.id}><Badge tone={e.status === "feito" ? "good" : e.status === "pendente" ? "warn" : "default"}>{e.status.replace("_", " ")}</Badge> <strong>{e.title}</strong>{e.feedback && <span className="block text-xs text-muted mt-0.5">“{e.feedback}”</span>}</li>)}</ul> : <p className="text-sm text-muted">Nenhum exercício.</p>}</Sec>
+      <div id="metas" className="grid md:grid-cols-2 gap-6 scroll-mt-6">
+        <Sec id="metas-l" title="Metas">{d.goals.length ? <ul className="text-sm space-y-1.5">{d.goals.map((g, i) => <li key={i} className="flex gap-2"><Badge tone={g.status === "atingida" ? "good" : "default"}>{g.status}</Badge>{g.title}</li>)}</ul> : <p className="text-sm text-muted">Nenhuma meta.</p>}</Sec>
+        <Sec id="ex" title="Exercícios">{d.exercises.length ? <ul className="text-sm space-y-2">{d.exercises.map((e, i) => <li key={i}><Badge tone={e.status === "feito" ? "good" : e.status === "pendente" ? "warn" : "default"}>{e.status.replace("_", " ")}</Badge> <strong>{e.title}</strong>{e.feedback && <span className="block text-xs text-muted mt-0.5">“{e.feedback}”</span>}</li>)}</ul> : <p className="text-sm text-muted">Nenhum exercício.</p>}</Sec>
       </div>
 
-      <Sec title="Sessões">
-        {!sessions.length && <p className="text-muted text-sm">Nenhuma sessão ainda.</p>}
+      <Sec id="sessoes" title="Sessões">
+        {!d.sessions.length && <p className="text-muted text-sm">Nenhuma sessão ainda.</p>}
         <div className="space-y-3">
-          {sessions.map((s) => {
-            const a = parseAnalysis(s);
-            const msgs = sessionMessages(s.id);
+          {[...d.sessions].reverse().map((s) => {
+            const a = s.analysis;
             return (
               <details key={s.id} className="rounded-xl border border-line p-4">
                 <summary className="cursor-pointer flex flex-wrap items-center gap-2">
                   <strong>Sessão {s.number}</strong><Badge tone={s.kind === "triagem" ? "warn" : "good"}>{s.kind}</Badge>
                   {s.status === "active" && <Badge tone="dark">em andamento</Badge>}
                   {a && a.risco.nivel >= 1 && <Badge tone={a.risco.nivel >= 3 ? "alert" : "warn"}>risco {a.risco.nivel}</Badge>}
-                  <span className="text-sm text-muted ml-auto">{fmtDateTime(s.started_at)} · {fmtDuration(s.duration_sec)}{s.end_reason ? ` · ${s.end_reason}` : ""}</span>
+                  <span className="text-sm text-muted ml-auto">{s.started} · {s.duration}{s.endReason ? ` · ${s.endReason}` : ""}</span>
                 </summary>
                 <div className="mt-4 space-y-4 text-sm">
                   {a ? (
@@ -138,13 +146,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                         <div><h3 className="font-semibold mb-1">Hipóteses <span className="font-normal text-muted">(não são fatos)</span></h3><ul className="list-disc pl-5 text-ink-soft space-y-0.5">{a.hipoteses.map((h) => <li key={h.texto}>{h.texto} <span className="text-muted">[{h.confianca}]</span></li>)}</ul></div>
                       </div>
                       <p><span className="font-semibold">Para o profissional:</span> {a.para_o_profissional}</p>
-                      <p className="text-muted">Humor {a.humor_estimado_inicio ?? "—"} → {a.humor_estimado_fim ?? "—"} · técnicas: {a.tecnicas_usadas.join(", ") || "—"} · prompt {s.prompt_version}</p>
+                      <p className="text-muted">Humor {a.humor_estimado_inicio ?? "—"} → {a.humor_estimado_fim ?? "—"} · técnicas: {a.tecnicas_usadas.join(", ") || "—"} · prompt {s.promptVersion}</p>
                     </>
                   ) : <p className="text-muted">Sem análise.</p>}
                   {s.status === "ended" && <ReanalyzeButton id={s.id} />}
-                  {msgs.length > 0 && (
-                    <details><summary className="cursor-pointer font-semibold text-teal-deep">Transcrição ({msgs.length} falas)</summary>
-                      <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">{msgs.map((m) => <p key={m.id}><strong>{m.role === "assistant" ? agent?.agent_name ?? "IA" : "Paciente"}:</strong> <span className="text-ink-soft">{m.content}</span></p>)}</div>
+                  {s.messages.length > 0 && (
+                    <details><summary className="cursor-pointer font-semibold text-teal-deep">Transcrição ({s.messages.length} falas)</summary>
+                      <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">{s.messages.map((m, i) => <p key={i}><strong>{m.role === "assistant" ? d.agent?.name ?? "IA" : "Paciente"}:</strong> <span className="text-ink-soft">{m.content}</span></p>)}</div>
                     </details>
                   )}
                 </div>
@@ -154,21 +162,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         </div>
       </Sec>
 
-      {chat.length > 0 && (
-        <Sec title="Mensagens de emergência (chat)">
-          <div className="space-y-1.5 text-sm max-h-96 overflow-y-auto">{chat.map((m) => <p key={m.id}><span className="text-xs text-muted">{fmtDateTime(m.created_at)}</span> <strong>{m.role === "assistant" ? agent?.agent_name ?? "IA" : "Paciente"}:</strong> <span className="text-ink-soft whitespace-pre-line">{m.content}</span></p>)}</div>
-        </Sec>
-      )}
-
-      {report && (
-        <Sec title="Último relatório">
-          <p className="text-sm text-muted">Gerado em {fmtDateTime(report.created_at)}. <a className="text-teal-deep font-semibold" href={`/api/admin/users/${id}/pdf`}>Baixar PDF</a></p>
-        </Sec>
-      )}
+      <Sec id="chat" title={`Mensagens de emergência (${d.chat.length})`}>
+        {d.chat.length ? <div className="space-y-1.5 text-sm max-h-96 overflow-y-auto">{d.chat.map((m, i) => <p key={i}><span className="text-xs text-muted">{m.at}</span> <strong>{m.role === "assistant" ? d.agent?.name ?? "IA" : "Paciente"}:</strong> <span className="text-ink-soft whitespace-pre-line">{m.content}</span></p>)}</div> : <p className="text-sm text-muted">Nenhuma mensagem.</p>}
+      </Sec>
 
       {promptPreview && (
-        <details className="card">
-          <summary className="cursor-pointer font-semibold">Prompt montado para a próxima chamada ({promptPreview.length.toLocaleString("pt-BR")} caracteres · chat: {chatPrompt.toLocaleString("pt-BR")})</summary>
+        <details id="prompt" className="card scroll-mt-6">
+          <summary className="cursor-pointer font-semibold">Prompt montado para a próxima chamada ({promptPreview.length.toLocaleString("pt-BR")} caracteres · chat: {chatLen.toLocaleString("pt-BR")})</summary>
           <p className="text-xs text-muted mt-2">É exatamente isto que o modelo recebe: persona + regras de conversa + memória + roteiro da sessão + segurança. Útil para auditar e depurar o comportamento.</p>
           <pre className="mt-3 text-xs whitespace-pre-wrap bg-sand rounded-xl p-4 max-h-[500px] overflow-auto">{promptPreview}</pre>
         </details>

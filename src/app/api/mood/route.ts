@@ -1,13 +1,14 @@
 import { apiUser } from "@/lib/auth";
-import { bad, json, readJson, str } from "@/lib/api";
-import { run } from "@/lib/db";
+import { bad, json, parseBody, rateLimit } from "@/lib/api";
+import { prisma } from "@/lib/prisma";
+import { moodSchema } from "@/lib/schemas";
 
 export async function POST(req: Request) {
   const user = await apiUser("patient");
   if (!user) return bad("Não autenticado", 401);
-  const b = await readJson(req);
-  const score = Number(b?.score);
-  if (!Number.isInteger(score) || score < 0 || score > 10) return bad("Nota inválida");
-  run("INSERT INTO moods (user_id, score, note) VALUES (?, ?, ?)", user.id, score, str(b?.note, 280) || null);
+  if (!rateLimit(`mood:${user.id}`, 30, 60 * 60_000)) return bad("Muitos registros em pouco tempo.", 429);
+  const [b, err] = await parseBody(req, moodSchema, "Nota inválida");
+  if (err) return err;
+  await prisma.mood.create({ data: { user_id: user.id, score: b.score, note: b.note || null } });
   return json({ ok: true });
 }

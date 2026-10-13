@@ -1,132 +1,147 @@
-import { all, get, run, audit } from "./db";
-import { EMPTY_MEMORY, type Agent, type CaseMemory, type Message, type Session, type SessionAnalysis } from "./types";
+import type { Prisma } from "@prisma/client";
+import { audit, prisma } from "./prisma";
+import { dec, decSafe, enc } from "./crypto";
 import { config } from "./config";
-import { dayKey, parseDbDate } from "./time";
+import { dayKey } from "./time";
+import { EMPTY_MEMORY, type Agent, type CaseMemory, type Message, type Session, type SessionAnalysis } from "./types";
 
-export const getAgent = (uid: number) => get<Agent>("SELECT * FROM agent_settings WHERE user_id = ?", uid);
+// ---- Rótulos de criptografia (AAD) -------------------------------------------------------------------------------
+const L = { msg: "message.content", analysis: "session.analysis", memory: "case_memory.data", report: "report.data", alert: "alert.excerpt", totp: "user.totp" } as const;
+export const encTotp = (s: string) => enc(s, L.totp)!;
+export const decTotp = (s: string) => dec(s, L.totp)!;
 
-export function getMemory(uid: number): CaseMemory {
-  const r = get<{ data: string }>("SELECT data FROM case_memory WHERE user_id = ?", uid);
+// ---- Agente --------------------------------------------------------------------------------------------------------
+export const getAgent = (uid: number) => prisma.agentSettings.findUnique({ where: { user_id: uid } }) as Promise<Agent | null>;
+
+// ---- Memória do caso (versionada, append-only) ----------------------------------------------------------------------
+export async function getMemory(uid: number): Promise<CaseMemory> {
+  const r = await prisma.caseMemory.findUnique({ where: { user_id: uid } });
   if (!r) return { ...EMPTY_MEMORY };
   try {
-    return { ...EMPTY_MEMORY, ...JSON.parse(r.data) };
+    return { ...EMPTY_MEMORY, ...JSON.parse(dec(r.data, L.memory) ?? "{}") };
   } catch {
     return { ...EMPTY_MEMORY };
   }
 }
 
-/** A memória é versionada: nunca sobrescreve histórico (append-only em case_memory_versions). */
-export function saveMemory(uid: number, mem: CaseMemory, sessionId?: number) {
-  const cur = get<{ version: number }>("SELECT version FROM case_memory WHERE user_id = ?", uid);
-  const version = (cur?.version ?? 0) + 1;
-  const data = JSON.stringify(mem);
-  run(
-    `INSERT INTO case_memory (user_id, data, version, updated_at) VALUES (?, ?, ?, datetime('now'))
-     ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, version = excluded.version, updated_at = excluded.updated_at`,
-    uid,
-    data,
-    version,
-  );
-  run("INSERT INTO case_memory_versions (user_id, version, data, session_id) VALUES (?, ?, ?, ?)", uid, version, data, sessionId ?? null);
+export async function saveMemory(uid: number, mem: CaseMemory, sessionId?: number) {
+  const data = enc(JSON.stringify(mem), L.memory)!;
+  await prisma.$transaction(async (tx) => {
+    const cur = await tx.caseMemory.findUnique({ where: { user_id: uid }, select: { version: true } });
+    const version = (cur?.version ?? 0) + 1;
+    await tx.caseMemory.upsert({ where: { user_id: uid }, create: { user_id: uid, data, version }, update: { data, version, updated_at: new Date() } });
+    await tx.caseMemoryVersion.create({ data: { user_id: uid, version, data, session_id: sessionId ?? null } });
+  });
 }
 
-export const endedSessions = (uid: number, limit = 50) =>
-  all<Session>("SELECT * FROM sessions WHERE user_id = ? AND status = 'ended' ORDER BY id DESC LIMIT ?", uid, limit);
+export async function memoryVersions(uid: number) {
+  const rows = await prisma.caseMemoryVersion.findMany({ where: { user_id: uid }, orderBy: { version: "asc" } });
+  return rows.map((r) => ({ version: r.version, created_at: r.created_at, session_id: r.session_id, data: safeJson<CaseMemory>(decSafe(r.data, L.memory)) }));
+}
 
-export const allSessions = (uid: number) => all<Session>("SELECT * FROM sessions WHERE user_id = ? ORDER BY id DESC", uid);
-
-export const getSession = (id: number) => get<Session>("SELECT * FROM sessions WHERE id = ?", id);
-
-export const activeSession = (uid: number) =>
-  get<Session>("SELECT * FROM sessions WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1", uid);
-
-export function parseAnalysis(s: Session | null | undefined): SessionAnalysis | null {
-  if (!s?.analysis) return null;
+const safeJson = <T>(s: string): T | null => {
   try {
-    return JSON.parse(s.analysis) as SessionAnalysis;
+    return JSON.parse(s) as T;
   } catch {
     return null;
   }
+};
+
+// ---- Sessões --------------------------------------------------------------------------------------------------------
+const hydrate = (s: Session | null): Session | null => (s ? { ...s, analysis: s.analysis ? decSafe(s.analysis, L.analysis) : null } : null);
+const hydrateAll = (a: Session[]) => a.map((s) => hydrate(s)!);
+
+export const getSession = async (id: number) => hydrate(await prisma.therapySession.findUnique({ where: { id } }));
+export const endedSessions = async (uid: number, limit = 50) => hydrateAll(await prisma.therapySession.findMany({ where: { user_id: uid, status: "ended" }, orderBy: { id: "desc" }, take: limit }));
+export const allSessions = async (uid: number) => hydrateAll(await prisma.therapySession.findMany({ where: { user_id: uid }, orderBy: { id: "desc" } }));
+export const activeSession = async (uid: number) => hydrate(await prisma.therapySession.findFirst({ where: { user_id: uid, status: "active" }, orderBy: { id: "desc" } }));
+
+export function parseAnalysis(s: Session | null | undefined): SessionAnalysis | null {
+  return s?.analysis ? safeJson<SessionAnalysis>(s.analysis) : null;
 }
 
-export const sessionMessages = (sessionId: number) =>
-  all<Message>("SELECT * FROM messages WHERE session_id = ? ORDER BY id ASC", sessionId);
+export const saveAnalysis = (id: number, a: SessionAnalysis) =>
+  prisma.therapySession.update({ where: { id }, data: { analysis: enc(JSON.stringify(a), L.analysis), mood_start: a.humor_estimado_inicio, mood_end: a.humor_estimado_fim } });
 
-export const recentChat = (uid: number, limit = 30) =>
-  all<Message>("SELECT * FROM messages WHERE user_id = ? AND channel = 'chat' ORDER BY id DESC LIMIT ?", uid, limit).reverse();
-
-export function addMessage(uid: number, sessionId: number | null, channel: "voice" | "chat", role: Message["role"], content: string) {
-  return run("INSERT INTO messages (user_id, session_id, channel, role, content) VALUES (?, ?, ?, ?, ?)", uid, sessionId, channel, role, content).id;
+export async function nextSessionNumber(uid: number) {
+  const r = await prisma.therapySession.aggregate({ where: { user_id: uid }, _max: { number: true } });
+  return (r._max.number ?? 0) + 1;
 }
 
-export const activeGoals = (uid: number) =>
-  all<{ id: number; title: string; status: string; created_at: string }>(
-    "SELECT * FROM goals WHERE user_id = ? ORDER BY CASE status WHEN 'ativa' THEN 0 WHEN 'atingida' THEN 1 ELSE 2 END, id DESC",
-    uid,
-  );
+/** A triagem só conta como feita se durou >= 10 min; quedas de conexão não "queimam" a primeira sessão. */
+export const hasCompletedSession = async (uid: number) =>
+  !!(await prisma.therapySession.findFirst({ where: { user_id: uid, status: "ended", kind: "triagem", duration_sec: { gte: 600 } }, select: { id: true } }));
 
-export const allExercises = (uid: number) =>
-  all<{ id: number; title: string; description: string; status: string; feedback: string | null; created_at: string; completed_at: string | null }>(
-    "SELECT * FROM exercises WHERE user_id = ? ORDER BY id DESC",
-    uid,
-  );
+// ---- Mensagens ------------------------------------------------------------------------------------------------------
+const hydrateMsg = (m: Message): Message => ({ ...m, content: decSafe(m.content, L.msg) });
 
-export const moodHistory = (uid: number, limit = 30) =>
-  all<{ score: number; note: string | null; created_at: string }>("SELECT score, note, created_at FROM moods WHERE user_id = ? ORDER BY id DESC LIMIT ?", uid, limit).reverse();
+export const sessionMessages = async (sessionId: number) => (await prisma.message.findMany({ where: { session_id: sessionId }, orderBy: { id: "asc" } })).map(hydrateMsg);
+export const recentChat = async (uid: number, limit = 30) => (await prisma.message.findMany({ where: { user_id: uid, channel: "chat" }, orderBy: { id: "desc" }, take: limit })).reverse().map(hydrateMsg);
+export const allChat = async (uid: number) => (await prisma.message.findMany({ where: { user_id: uid, channel: "chat" }, orderBy: { id: "asc" } })).map(hydrateMsg);
 
-export const screenings = (uid: number) =>
-  all<{ kind: string; score: number; flagged: number; answers: string; created_at: string }>(
-    "SELECT * FROM screenings WHERE user_id = ? ORDER BY id ASC",
-    uid,
-  );
+export async function addMessage(uid: number, sessionId: number | null, channel: "voice" | "chat", role: Message["role"], content: string) {
+  return (await prisma.message.create({ data: { user_id: uid, session_id: sessionId, channel, role, content: enc(content, L.msg)! } })).id;
+}
 
-export const nextSessionNumber = (uid: number) =>
-  (get<{ n: number }>("SELECT COALESCE(MAX(number), 0) + 1 AS n FROM sessions WHERE user_id = ?", uid)?.n ?? 1);
+// ---- Metas, exercícios, humor, escalas -------------------------------------------------------------------------------
+export const activeGoals = (uid: number) => prisma.goal.findMany({ where: { user_id: uid }, orderBy: { id: "desc" } }).then((g) => g.sort((a, b) => rank(a.status) - rank(b.status)));
+const rank = (s: string) => (s === "ativa" ? 0 : s === "atingida" ? 1 : 2);
+export const allExercises = (uid: number) => prisma.exercise.findMany({ where: { user_id: uid }, orderBy: { id: "desc" } });
+export const moodHistory = async (uid: number, limit = 30) => (await prisma.mood.findMany({ where: { user_id: uid }, orderBy: { id: "desc" }, take: limit })).reverse();
+export const screenings = (uid: number) => prisma.screening.findMany({ where: { user_id: uid }, orderBy: { id: "asc" } });
 
-/** A triagem só conta como feita se durou o suficiente (>= 10 min); quedas de conexão não "queimam" a primeira sessão. */
-export const hasCompletedSession = (uid: number) => !!get("SELECT 1 FROM sessions WHERE user_id = ? AND status = 'ended' AND kind = 'triagem' AND duration_sec >= 600", uid);
-
-export function raiseAlert(uid: number, level: number, source: string, excerpt: string) {
-  // Evita duplicar alertas idênticos abertos em sequência.
-  const dup = get<{ id: number; level: number }>(
-    "SELECT id, level FROM alerts WHERE user_id = ? AND status = 'aberto' AND source = ? AND created_at > datetime('now', '-10 minutes') ORDER BY id DESC LIMIT 1",
-    uid,
-    source,
-  );
+// ---- Alertas de risco -----------------------------------------------------------------------------------------------
+export async function raiseAlert(uid: number, level: number, source: string, excerpt: string) {
+  const dup = await prisma.alert.findFirst({ where: { user_id: uid, status: "aberto", source, created_at: { gt: new Date(Date.now() - 10 * 60_000) } }, orderBy: { id: "desc" } });
   if (dup) {
-    if (level > dup.level) run("UPDATE alerts SET level = ?, excerpt = ? WHERE id = ?", level, excerpt.slice(0, 500), dup.id);
+    if (level > dup.level) await prisma.alert.update({ where: { id: dup.id }, data: { level, excerpt: enc(excerpt.slice(0, 500), L.alert)! } });
     return dup.id;
   }
-  const id = run("INSERT INTO alerts (user_id, level, source, excerpt) VALUES (?, ?, ?, ?)", uid, level, source, excerpt.slice(0, 500)).id;
-  audit("system", "alert.raised", uid, { level, source });
-  return id;
+  const a = await prisma.alert.create({ data: { user_id: uid, level, source, excerpt: enc(excerpt.slice(0, 500), L.alert)! } });
+  await audit("system", "alert.raised", uid, { level, source });
+  return a.id;
 }
 
-/** Quantas chamadas de voz o paciente já iniciou hoje (fuso de São Paulo). */
-export function callsToday(uid: number): number {
+export type AlertRow = { id: number; user_id: number; level: number; source: string; excerpt: string; status: string; note: string | null; created_at: Date; handled_at: Date | null; user?: { id: number; name: string } };
+export async function listAlerts(where: Prisma.AlertWhereInput = {}, take = 200): Promise<AlertRow[]> {
+  const rows = await prisma.alert.findMany({ where, include: { user: { select: { id: true, name: true } } }, orderBy: [{ id: "desc" }], take });
+  return rows.map((r) => ({ ...r, excerpt: decSafe(r.excerpt, L.alert) }));
+}
+
+// ---- Relatórios -----------------------------------------------------------------------------------------------------
+export async function saveReport(uid: number, data: unknown, model: string, promptVersion: string) {
+  return (await prisma.report.create({ data: { user_id: uid, data: enc(JSON.stringify(data), L.report)!, model, prompt_version: promptVersion } })).id;
+}
+export async function getReport<T>(uid: number, id?: number | null): Promise<{ id: number; created_at: Date; data: T } | null> {
+  const r = id ? await prisma.report.findFirst({ where: { id, user_id: uid } }) : await prisma.report.findFirst({ where: { user_id: uid }, orderBy: { id: "desc" } });
+  if (!r) return null;
+  const data = safeJson<T>(decSafe(r.data, L.report));
+  return data ? { id: r.id, created_at: r.created_at, data } : null;
+}
+
+// ---- Regras de uso diário -------------------------------------------------------------------------------------------
+/** Chamadas em andamento ou com >= 3 min (falha técnica não consome o direito do dia). */
+export async function callsToday(uid: number): Promise<number> {
   const today = dayKey(new Date());
-  // Só contam chamadas em andamento ou que duraram pelo menos 3 minutos (falha técnica não consome o direito do dia).
-  return all<{ started_at: string }>("SELECT started_at FROM sessions WHERE user_id = ? AND started_at > datetime('now', '-2 days') AND (status = 'active' OR duration_sec >= 180)", uid).filter(
-    (s) => dayKey(parseDbDate(s.started_at)) === today,
-  ).length;
+  const rows = await prisma.therapySession.findMany({
+    where: { user_id: uid, started_at: { gt: new Date(Date.now() - 2 * 864e5) }, OR: [{ status: "active" }, { duration_sec: { gte: 180 } }] },
+    select: { started_at: true },
+  });
+  return rows.filter((s) => dayKey(s.started_at) === today).length;
 }
 
-export function callLimitFor(user: { calls_per_day: number | null }): number {
-  return user.calls_per_day ?? config.callsPerDay();
-}
+export const callLimitFor = (user: { calls_per_day: number | null }) => user.calls_per_day ?? config.callsPerDay();
 
-export function chatToday(uid: number): number {
+export async function chatToday(uid: number): Promise<number> {
   const today = dayKey(new Date());
-  return all<{ created_at: string }>("SELECT created_at FROM messages WHERE user_id = ? AND channel='chat' AND role='user' AND created_at > datetime('now', '-2 days')", uid).filter(
-    (m) => dayKey(parseDbDate(m.created_at)) === today,
-  ).length;
+  const rows = await prisma.message.findMany({ where: { user_id: uid, channel: "chat", role: "user", created_at: { gt: new Date(Date.now() - 2 * 864e5) } }, select: { created_at: true } });
+  return rows.filter((m) => dayKey(m.created_at) === today).length;
 }
 
-/** Disponibilidade da chamada: liberada se ainda há direito no dia OU se há uma sessão em andamento que pode ser retomada. */
-export function callAvailability(user: { id: number; calls_per_day: number | null }) {
-  const act = activeSession(user.id);
-  const resumable = !!act && Math.round(act.max_minutes * 60 - (Date.now() - parseDbDate(act.started_at).getTime()) / 1000) > 30;
-  const used = callsToday(user.id);
+export async function callAvailability(user: { id: number; calls_per_day: number | null }) {
+  const act = await activeSession(user.id);
+  const resumable = !!act && Math.round(act.max_minutes * 60 - (Date.now() - act.started_at.getTime()) / 1000) > 30;
+  const used = await callsToday(user.id);
   const limit = callLimitFor(user);
   return { available: resumable || used < limit, resumable, used, limit };
 }

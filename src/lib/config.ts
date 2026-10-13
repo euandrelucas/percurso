@@ -12,7 +12,6 @@ export const config = {
   sessionMaxMinutes: () => num(process.env.SESSION_MAX_MINUTES, 60),
   callsPerDay: () => num(process.env.CALLS_PER_DAY, 1),
   chatPerDay: () => num(process.env.CHAT_MESSAGES_PER_DAY, 80),
-  dbPath: () => process.env.DATABASE_PATH || "./data/percurso.db",
   timezone: "America/Sao_Paulo",
 };
 

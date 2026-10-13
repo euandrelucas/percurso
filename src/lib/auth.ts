@@ -1,10 +1,15 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { randomBytes } from "node:crypto";
+import { cache } from "react";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { get } from "./db";
+import { prisma } from "./prisma";
+import { decSafe, sha256 } from "./crypto";
 
-const COOKIE = "percurso_session";
-const MAX_AGE = 60 * 60 * 24 * 14;
+const IS_HTTPS = (process.env.APP_URL ?? "").startsWith("https://");
+const COOKIE = IS_HTTPS ? "__Host-percurso" : "percurso_session"; // __Host- exige Secure, Path=/ e sem Domain
+const PATIENT_TTL_MS = 7 * 24 * 3600_000;
+const ADMIN_TTL_MS = 8 * 3600_000;
+const PENDING_TTL_MS = 10 * 60_000;
 
 export type User = {
   id: number;
@@ -12,78 +17,85 @@ export type User = {
   name: string;
   role: "admin" | "patient";
   status: string;
-  onboarded: number;
-  consent_at: string | null;
+  onboarded: boolean;
+  consent_at: Date | null;
   calls_per_day: number | null;
-  created_at: string;
+  totp_enabled: boolean;
+  created_at: Date;
 };
 
-function secret(): string {
-  const s = process.env.AUTH_SECRET;
-  if (!s || s.length < 16) {
-    if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET ausente ou curto demais");
-    return "dev-insecure-secret-change-me";
-  }
-  return s;
-}
+export const requireAdmin2fa = () => process.env.ADMIN_REQUIRE_2FA !== "0" && process.env.NODE_ENV === "production";
 
-const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url");
-
-export function makeToken(uid: number): string {
-  const payload = Buffer.from(JSON.stringify({ uid, exp: Math.floor(Date.now() / 1000) + MAX_AGE })).toString("base64url");
-  return `${payload}.${sign(payload)}`;
-}
-
-function readToken(token: string | undefined): number | null {
-  if (!token) return null;
-  const [payload, sig] = token.split(".");
-  if (!payload || !sig) return null;
-  const expected = Buffer.from(sign(payload));
-  const given = Buffer.from(sig);
-  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
-  try {
-    const { uid, exp } = JSON.parse(Buffer.from(payload, "base64url").toString());
-    return typeof uid === "number" && exp > Date.now() / 1000 ? uid : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function setSessionCookie(uid: number) {
-  (await cookies()).set(COOKIE, makeToken(uid), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: MAX_AGE,
+/** Cria uma sessão revogável (o token só existe no cookie; no banco fica o hash). */
+export async function createSession(userId: number, role: string, opts: { pending2fa?: boolean; ip?: string; ua?: string | null }) {
+  const token = randomBytes(32).toString("base64url");
+  const ttl = opts.pending2fa ? PENDING_TTL_MS : role === "admin" ? ADMIN_TTL_MS : PATIENT_TTL_MS;
+  await prisma.authSession.create({
+    data: { id: sha256(token), user_id: userId, pending_2fa: !!opts.pending2fa, ip: opts.ip ?? null, user_agent: opts.ua?.slice(0, 200) ?? null, expires_at: new Date(Date.now() + ttl) },
   });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "strict", secure: IS_HTTPS, path: "/", maxAge: Math.floor(ttl / 1000) });
+  return token;
 }
 
-export async function clearSessionCookie() {
+export async function readToken(): Promise<string | undefined> {
+  return (await cookies()).get(COOKIE)?.value;
+}
+
+export async function destroySession() {
+  const t = await readToken();
+  if (t) await prisma.authSession.deleteMany({ where: { id: sha256(t) } });
   (await cookies()).delete(COOKIE);
 }
 
-export async function currentUser(): Promise<User | null> {
-  const uid = readToken((await cookies()).get(COOKIE)?.value);
-  if (!uid) return null;
-  const u = get<User>("SELECT id,email,name,role,status,onboarded,consent_at,calls_per_day,created_at FROM users WHERE id = ?", uid);
-  return u && u.status === "active" ? u : null;
+/** Encerra todas as sessões de um usuário (troca de senha, suspensão, 2FA alterado). */
+export const revokeAllSessions = (userId: number) => prisma.authSession.deleteMany({ where: { user_id: userId } });
+
+async function load(token: string | undefined, allowPending: boolean) {
+  if (!token || token.length < 32 || token.length > 128) return null;
+  const s = await prisma.authSession.findUnique({ where: { id: sha256(token) }, include: { user: true } });
+  if (!s || s.expires_at < new Date()) return null;
+  if (s.pending_2fa && !allowPending) return null;
+  const u = s.user;
+  if (u.status !== "active") return null;
+  if (Date.now() - s.last_seen_at.getTime() > 5 * 60_000) void prisma.authSession.update({ where: { id: s.id }, data: { last_seen_at: new Date() } }).catch(() => {});
+  return { session: s, user: u };
 }
 
-/** Para páginas: redireciona se não houver sessão. */
+const toUser = (u: NonNullable<Awaited<ReturnType<typeof load>>>["user"]): User => ({
+  id: u.id, email: u.email, name: u.name, role: u.role as User["role"], status: u.status, onboarded: u.onboarded, consent_at: u.consent_at, calls_per_day: u.calls_per_day, totp_enabled: u.totp_enabled, created_at: u.created_at,
+});
+
+export const currentUser = cache(async (): Promise<User | null> => {
+  const r = await load(await readToken(), false);
+  return r ? toUser(r.user) : null;
+});
+
+/** Usuário com senha validada, mas ainda sem o código 2FA. */
+export async function pendingUser() {
+  const r = await load(await readToken(), true);
+  return r && r.session.pending_2fa ? { user: r.user, sessionId: r.session.id } : null;
+}
+
+export async function promoteSession(sessionId: string, role: string) {
+  const ttl = role === "admin" ? ADMIN_TTL_MS : PATIENT_TTL_MS;
+  await prisma.authSession.update({ where: { id: sessionId }, data: { pending_2fa: false, expires_at: new Date(Date.now() + ttl), last_seen_at: new Date() } });
+  const token = await readToken();
+  if (token) (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "strict", secure: IS_HTTPS, path: "/", maxAge: Math.floor(ttl / 1000) });
+}
+
 export async function requireUser(): Promise<User> {
   const u = await currentUser();
   if (!u) redirect("/entrar");
   return u;
 }
 
-export async function requireAdmin(): Promise<User> {
+export async function requireAdmin(opts: { skip2fa?: boolean } = {}): Promise<User> {
   const u = await requireUser();
   if (u.role !== "admin") redirect("/app");
+  if (!opts.skip2fa && requireAdmin2fa() && !u.totp_enabled) redirect("/admin/seguranca");
   return u;
 }
 
-/** Para páginas de paciente: exige onboarding concluído. */
 export async function requirePatient(): Promise<User> {
   const u = await requireUser();
   if (u.role === "admin") redirect("/admin");
@@ -96,5 +108,14 @@ export async function apiUser(role?: "admin" | "patient"): Promise<User | null> 
   const u = await currentUser();
   if (!u) return null;
   if (role && u.role !== role) return null;
+  if (u.role === "admin" && requireAdmin2fa() && !u.totp_enabled) return null;
   return u;
 }
+
+export async function requestIp(): Promise<string> {
+  const h = await headers();
+  if (process.env.TRUST_PROXY === "1") return h.get("x-forwarded-for")?.split(",")[0]?.trim().slice(0, 64) ?? "direct";
+  return "direct";
+}
+
+export { decSafe };

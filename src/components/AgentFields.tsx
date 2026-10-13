@@ -52,7 +52,7 @@ export function IdentityFields({ form, set }: P) {
     <div className="grid md:grid-cols-[240px_1fr] gap-8">
       <div>
         <div className="rounded-3xl overflow-hidden aspect-square border border-line shadow-sm sticky top-4">
-          <Avatar avatar={form.avatar} level={0} className="w-full h-full" />
+          <Avatar avatar={form.avatar} className="w-full h-full" />
         </div>
       </div>
       <div className="space-y-5">

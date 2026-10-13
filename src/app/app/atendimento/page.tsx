@@ -9,9 +9,10 @@ export const metadata = { title: "Atendimento" };
 
 export default async function Atendimento() {
   const u = await requirePatient();
-  const agent = getAgent(u.id)!;
-  const { available: ok, limit } = callAvailability(u);
-  const first = !hasCompletedSession(u.id);
+  const [agent, avail, completed, chatUsed] = await Promise.all([getAgent(u.id), callAvailability(u), hasCompletedSession(u.id), chatToday(u.id)]);
+  if (!agent) return null;
+  const { available: ok, limit } = avail;
+  const first = !completed;
   return (
     <>
       <PageTitle title="Atendimento" sub={`Converse com ${agent.agent_name} por voz e vídeo, ou mande mensagem quando o aperto for maior.`} />
@@ -25,7 +26,7 @@ export default async function Atendimento() {
         <section className="card flex flex-col">
           <Badge tone="warn">Para momentos de emergência</Badge>
           <h2 className="text-2xl font-semibold mt-3">Mensagens</h2>
-          <p className="text-ink-soft mt-2 flex-1">Escreva a qualquer hora, como num app de mensagens, quando precisar de apoio rápido entre as chamadas. Hoje você pode enviar até {config.chatPerDay() - chatToday(u.id)} mensagens.</p>
+          <p className="text-ink-soft mt-2 flex-1">Escreva a qualquer hora, como num app de mensagens, quando precisar de apoio rápido entre as chamadas. Hoje você pode enviar até {config.chatPerDay() - chatUsed} mensagens.</p>
           <Link href="/app/atendimento/mensagens" className="btn btn-dark mt-5">Abrir conversa</Link>
         </section>
       </div>

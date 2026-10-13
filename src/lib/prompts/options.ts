@@ -129,9 +129,10 @@ export const ACCESSORIES = [
 ];
 export const ACCENTS = ["#0d9488", "#6366f1", "#e11d48", "#d97706", "#0284c7", "#7c3aed"];
 
-export function parseAvatar(json: string | null | undefined): Avatar {
+export function parseAvatar(value: unknown): Avatar {
   try {
-    return { ...AVATAR_DEFAULT, ...(json ? JSON.parse(json) : {}) };
+    const o = typeof value === "string" ? JSON.parse(value) : value;
+    return { ...AVATAR_DEFAULT, ...(o && typeof o === "object" ? (o as object) : {}) };
   } catch {
     return { ...AVATAR_DEFAULT };
   }
