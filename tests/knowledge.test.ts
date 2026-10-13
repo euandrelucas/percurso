@@ -39,6 +39,9 @@ test("seleção por assunto (com acentos, caixa e variações)", () => {
   assert.ok(ids("estou ouvindo vozes e acho que estão me seguindo").includes("psicose-mania"));
   assert.ok(ids("não bebo há dois dias e estou tremendo, bebo todo dia").includes("substancias"));
   assert.ok(ids("me corto quando fico nervosa").includes("autolesao"));
+  assert.ok(ids("sou gay e tenho medo de contar pra minha família").includes("acolhimento-lgbtqia"));
+  assert.ok(ids("sofro homofobia no trabalho").includes("acolhimento-lgbtqia"));
+  assert.ok(ids("sou trans e quero usar meu nome social").includes("acolhimento-lgbtqia"));
 });
 
 test("sem assunto reconhecível não injeta nada; exclusões e limite são respeitados", () => {

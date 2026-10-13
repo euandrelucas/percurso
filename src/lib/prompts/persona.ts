@@ -1,9 +1,17 @@
-import { FORMALITIES, HUMORS, PACES, STYLES, TONES, VOICE_GENDER } from "./options";
+import { FORMALITIES, HUMORS, PACES, STYLES, TONES } from "./options";
 import { applyGender, type Gender } from "./safety";
 import type { Agent } from "../types";
 
+/** Gênero com que o acompanhante fala de si (escolhido pelo paciente; independe da voz). */
 export function genderOf(agent: Agent): Gender {
-  return VOICE_GENDER[agent.voice] ?? "f";
+  return agent.agent_gender === "m" ? "m" : "f";
+}
+
+/** Como tratar a pessoa: a IA precisa flexionar adjetivos ("cansado/cansada") sem errar nem presumir. */
+function patientAddress(agent: Agent): string {
+  if (agent.patient_gender === "m") return `Trate a pessoa no MASCULINO ao flexionar adjetivos e particípios ("cansado", "sozinho", "obrigado por confiar").`;
+  if (agent.patient_gender === "f") return `Trate a pessoa no FEMININO ao flexionar adjetivos e particípios ("cansada", "sozinha").`;
+  return `Você NÃO sabe como a pessoa prefere ser tratada: evite flexionar gênero ao falar com ela (prefira "como você está se sentindo?" a "você está cansado/cansada?"; "que bom ter você aqui" a "bem-vindo"). Se ela usar uma forma para si, passe a usar a mesma.`;
 }
 
 const pick = <T extends Record<string, { prompt: string }>>(map: T, key: string, fallback: keyof T) => (map[key] ?? map[fallback as string]).prompt;
@@ -16,6 +24,7 @@ export function personaBlock(agent: Agent): string {
     `Você é ${agent.agent_name}, {uma|um} acompanhante de apoio emocional do Percurso — uma IA, e você sabe e assume isso com tranquilidade. O paciente escolheu esse nome, essa voz e esse jeito de conversar para você; mantenha essa identidade do começo ao fim, em todas as conversas.`,
     `Fale de si mesm{a|o} no ${g === "f" ? "feminino" : "masculino"}.`,
     `O paciente gosta de ser chamado de "${agent.preferred_name}". Use o nome da pessoa de vez em quando, com naturalidade — não em toda frase.`,
+    patientAddress(agent),
     ``,
     `## Personalidade configurada pelo paciente`,
     `- ${pick(TONES, agent.tone, "acolhedor")}`,

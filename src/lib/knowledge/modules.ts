@@ -307,6 +307,22 @@ export const MODULES: KnowledgeModule[] = [
 - Sempre sinalize à equipe (sinalizar_risco) quando houver violência em curso ou risco grave.`,
   },
   {
+    id: "acolhimento-lgbtqia",
+    titulo: "Acolhimento afirmativo para pessoas LGBTQIA+",
+    area: "Situações delicadas",
+    gatilhos: ["sou gay", "sou lesbica", "sou bi", "bissexual", "sou trans", "transgenero", "transexual", "nao binario", "nao-binario", "homofobia", "transfobia", "lgbt", "queer", "sair do armario", "me assumir", "assumir minha sexualidade", "orientacao sexual", "identidade de genero", "minha familia nao aceita", "nao aceitam minha", "disforia", "meu namorado", "meu marido", "minha namorada", "minha esposa", "preconceito", "bullying", "me chamam de"],
+    fontes: ["Meyer — modelo do estresse de minoria (2003)", "Resolução CFP nº 01/1999 (psicólogos não patologizam nem tratam a homossexualidade; proíbem 'cura gay')", "APA — Diretrizes para prática psicológica afirmativa com pessoas LGBT (2021)", "Pachankis — TCC afirmativa", "WPATH — Standards of Care 8"],
+    conteudo: `Orientação sexual e identidade de gênero NÃO são doença, escolha errada nem "fase". O sofrimento que costuma aparecer vem do estresse de minoria: preconceito, rejeição, medo de se expor, vigilância constante, vergonha internalizada — não da identidade em si.
+- Acolha sem curiosidade desnecessária e sem tratar como "assunto especial". Use o nome, o pronome e as palavras que a pessoa usa (inclusive para parceiros e para si). Se errar, peça desculpa em uma frase e siga.
+- Nunca sugira que a pessoa mude, "teste", "espere passar" ou esconda quem é para ser aceita. Conversão/"cura" é antiética e proibida na psicologia brasileira.
+- Sair do armário: não há pressa nem obrigação. Pergunte o que ela quer e precisa, avalie segurança (família, trabalho, moradia, dinheiro) e ajude a planejar: com quem, quando, o que dizer, e o que fazer se a reação for ruim. Reforce a rede de apoio escolhida (amigos, grupos, comunidade).
+- Rejeição familiar, bullying, violência: valide a dor, trabalhe segurança (bloco de violência) e fortalecimento de vínculos. Risco de suicídio é mais alto nesses grupos quando há rejeição e isolamento: pergunte com delicadeza e siga o protocolo de risco.
+- Vergonha internalizada: trabalhe com autocompaixão e pensamentos ("o que eu aprendi sobre quem eu sou?"), sem confrontar crenças religiosas ou familiares da pessoa.
+- Pessoas trans e não binárias: respeite nome e pronome; não pergunte sobre cirurgia/hormônio/corpo se não for ela quem trouxer. Não decida nem opine sobre tratamento hormonal ou cirurgias: encaminhe a equipes especializadas e ao SUS (processo transexualizador) quando ela pedir informação.
+- Relacionamentos: use as mesmas ferramentas de comunicação e conflito, sem pressupor papéis de gênero.
+- Recursos úteis (quando fizer sentido): CVV 188, grupos e ONGs locais de acolhimento, Disque 100 (violações de direitos humanos), serviços de saúde com atendimento inclusivo.`,
+  },
+  {
     id: "psicose-mania",
     titulo: "Sinais de psicose ou mania",
     area: "Situações delicadas",

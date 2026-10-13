@@ -98,17 +98,23 @@ export type HumorKey = keyof typeof HUMORS;
 export type PaceKey = keyof typeof PACES;
 
 export const AVATAR_DEFAULT = {
+  face: "fem",
   skin: "#e8b48f",
   hair: "hair-short",
   hairColor: "#3b2a20",
+  facial: "none",
   accessory: "none",
   accent: "#0d9488",
 } as const;
 
 export type Avatar = {
+  /** Traços do rosto: "fem" (mais suave) ou "masc" (mandíbula marcada, sobrancelhas grossas). */
+  face: string;
   skin: string;
   hair: string;
   hairColor: string;
+  /** Pelos faciais: none | stubble | beard | mustache | goatee */
+  facial: string;
   accessory: string;
   accent: string;
 };
@@ -117,10 +123,24 @@ export const SKIN_TONES = ["#f6d7bd", "#e8b48f", "#c98e63", "#a86b43", "#7b4a2d"
 export const HAIR_COLORS = ["#1c1410", "#3b2a20", "#6b4a2f", "#a8742e", "#c9a35a", "#8a8a8a", "#7b2d4e", "#2f4f7a"];
 export const HAIR_STYLES = [
   { id: "hair-short", label: "Curto" },
+  { id: "hair-quiff", label: "Topete" },
+  { id: "hair-buzz", label: "Raspado" },
   { id: "hair-long", label: "Longo" },
   { id: "hair-curly", label: "Cacheado" },
+  { id: "hair-afro", label: "Black power" },
   { id: "hair-bun", label: "Coque" },
   { id: "hair-none", label: "Careca" },
+];
+export const FACIAL_HAIR = [
+  { id: "none", label: "Sem barba" },
+  { id: "stubble", label: "Barba por fazer" },
+  { id: "beard", label: "Barba" },
+  { id: "mustache", label: "Bigode" },
+  { id: "goatee", label: "Cavanhaque" },
+];
+export const FACES = [
+  { id: "fem", label: "Traços femininos" },
+  { id: "masc", label: "Traços masculinos" },
 ];
 export const ACCESSORIES = [
   { id: "none", label: "Nenhum" },
@@ -138,6 +158,21 @@ export function parseAvatar(value: unknown): Avatar {
   }
 }
 
+/** Gênero do acompanhante: define como ele fala de si (obrigada/obrigado), o rosto padrão e a voz sugerida. */
+export const GENDERS = {
+  f: { label: "Mulher", desc: "Fala no feminino. Rosto e voz femininos por padrão.", defaultVoice: "marin", defaultFace: "fem" },
+  m: { label: "Homem", desc: "Fala no masculino. Rosto e voz masculinos por padrão.", defaultVoice: "cedar", defaultFace: "masc" },
+} as const;
+export type GenderKey = keyof typeof GENDERS;
+
+/** Como a pessoa prefere ser tratada pelo acompanhante (a IA flexiona adjetivos de acordo). */
+export const PATIENT_GENDERS = {
+  n: { label: "Prefiro não flexionar", desc: "Evita \"cansado/cansada\" e usa formas neutras." },
+  m: { label: "Ele", desc: "No masculino: cansado, sozinho." },
+  f: { label: "Ela", desc: "No feminino: cansada, sozinha." },
+} as const;
+
+/** Apenas SUGESTÃO de voz por gênero (o paciente pode escolher qualquer voz; o gênero do agente vem de agent_gender). */
 export const VOICE_GENDER: Record<string, "f" | "m"> = {
   marin: "f",
   cedar: "m",

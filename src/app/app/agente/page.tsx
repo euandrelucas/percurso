@@ -13,7 +13,7 @@ export default async function AgentPage() {
   return (
     <>
       <PageTitle title="Seu acompanhante" sub="Mude o nome, a voz, a aparência e o jeito de conversar quando quiser." />
-      <AgentSettings initial={{ preferred_name: a.preferred_name, agent_name: a.agent_name, voice: a.voice, tone: a.tone, style: a.style, formality: a.formality, humor: a.humor, pace: a.pace, avatar: parseAvatar(a.avatar), about_me: a.about_me, topics: a.topics, boundaries: a.boundaries, goal_hint: a.goal_hint }} />
+      <AgentSettings initial={{ preferred_name: a.preferred_name, agent_name: a.agent_name, agent_gender: a.agent_gender, patient_gender: a.patient_gender, voice: a.voice, tone: a.tone, style: a.style, formality: a.formality, humor: a.humor, pace: a.pace, avatar: parseAvatar(a.avatar), about_me: a.about_me, topics: a.topics, boundaries: a.boundaries, goal_hint: a.goal_hint }} />
     </>
   );
 }

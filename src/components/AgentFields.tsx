@@ -1,10 +1,12 @@
 "use client";
 import { Avatar } from "./Avatar";
-import { ACCENTS, ACCESSORIES, AVATAR_DEFAULT, FORMALITIES, HAIR_COLORS, HAIR_STYLES, HUMORS, PACES, SKIN_TONES, STYLES, TONES, VOICES, type Avatar as AvatarT } from "@/lib/prompts/options";
+import { ACCENTS, ACCESSORIES, AVATAR_DEFAULT, FACES, FACIAL_HAIR, FORMALITIES, GENDERS, HAIR_COLORS, HAIR_STYLES, HUMORS, PACES, PATIENT_GENDERS, SKIN_TONES, STYLES, TONES, VOICES, VOICE_GENDER, type Avatar as AvatarT, type GenderKey } from "@/lib/prompts/options";
 
 export type AgentForm = {
   preferred_name: string;
   agent_name: string;
+  agent_gender: string;
+  patient_gender: string;
   voice: string;
   tone: string;
   style: string;
@@ -21,6 +23,8 @@ export type AgentForm = {
 export const defaultAgentForm = (name = ""): AgentForm => ({
   preferred_name: name,
   agent_name: "",
+  agent_gender: "f",
+  patient_gender: "n",
   voice: "marin",
   tone: "acolhedor",
   style: "equilibrado",
@@ -48,6 +52,15 @@ function Swatches({ colors, value, onPick, label }: { colors: string[]; value: s
 
 export function IdentityFields({ form, set }: P) {
   const setAv = (p: Partial<AvatarT>) => set({ avatar: { ...form.avatar, ...p } });
+  // Trocar o gênero ajusta rosto e voz sugeridos (e tira barba se voltar ao feminino), sem apagar o resto das escolhas.
+  const pickGender = (g: GenderKey) => {
+    const wasVoiceDefault = (VOICE_GENDER[form.voice] ?? "f") !== g;
+    set({
+      agent_gender: g,
+      voice: wasVoiceDefault ? GENDERS[g].defaultVoice : form.voice,
+      avatar: { ...form.avatar, face: GENDERS[g].defaultFace, facial: g === "f" ? "none" : form.avatar.facial, hair: g === "m" && ["hair-long", "hair-bun"].includes(form.avatar.hair) ? "hair-short" : form.avatar.hair },
+    });
+  };
   return (
     <div className="grid md:grid-cols-[240px_1fr] gap-8">
       <div>
@@ -56,6 +69,18 @@ export function IdentityFields({ form, set }: P) {
         </div>
       </div>
       <div className="space-y-5">
+        <div>
+          <span className="label">Quem é o seu acompanhante?</span>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Gênero do acompanhante">
+            {(Object.entries(GENDERS) as [GenderKey, (typeof GENDERS)[GenderKey]][]).map(([k, g]) => (
+              <button key={k} type="button" className="choice" aria-pressed={form.agent_gender === k} onClick={() => pickGender(k)}>
+                <div className="font-semibold">{g.label}</div>
+                <div className="text-xs text-muted">{g.desc}</div>
+              </button>
+            ))}
+          </div>
+          <p className="hint">Define como ele(a) fala de si e o rosto inicial. Você ainda ajusta aparência e voz livremente abaixo.</p>
+        </div>
         <div>
           <label className="label" htmlFor="agent_name">Como o seu acompanhante vai se chamar?</label>
           <input id="agent_name" className="input" value={form.agent_name} maxLength={30} onChange={(e) => set({ agent_name: e.target.value })} placeholder="Ex.: Alma, Leo, Íris…" />
@@ -72,11 +97,23 @@ export function IdentityFields({ form, set }: P) {
           </div>
         </div>
         <div>
+          <span className="label">Traços do rosto</span>
+          <div className="flex flex-wrap gap-2">
+            {FACES.map((f) => <button key={f.id} type="button" className="chip" aria-pressed={form.avatar.face === f.id} onClick={() => setAv({ face: f.id })}>{f.label}</button>)}
+          </div>
+        </div>
+        <div>
           <span className="label">Cabelo</span>
           <div className="flex flex-wrap gap-2">
             {HAIR_STYLES.map((h) => (
               <button key={h.id} type="button" className="chip" aria-pressed={form.avatar.hair === h.id} onClick={() => setAv({ hair: h.id })}>{h.label}</button>
             ))}
+          </div>
+        </div>
+        <div>
+          <span className="label">Barba e bigode</span>
+          <div className="flex flex-wrap gap-2">
+            {FACIAL_HAIR.map((f) => <button key={f.id} type="button" className="chip" aria-pressed={(form.avatar.facial ?? "none") === f.id} onClick={() => setAv({ facial: f.id })}>{f.label}</button>)}
           </div>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
@@ -133,6 +170,18 @@ export function AboutFields({ form, set }: P) {
       <div>
         <label className="label" htmlFor="pn">Como você gosta de ser chamado(a)?</label>
         <input id="pn" className="input" value={form.preferred_name} maxLength={40} onChange={(e) => set({ preferred_name: e.target.value })} />
+      </div>
+      <div>
+        <span className="label">Como você prefere ser tratado(a)?</span>
+        <div className="grid sm:grid-cols-3 gap-2" role="group" aria-label="Como prefere ser tratado">
+          {(Object.entries(PATIENT_GENDERS) as [string, { label: string; desc: string }][]).map(([k, g]) => (
+            <button key={k} type="button" className="choice" aria-pressed={form.patient_gender === k} onClick={() => set({ patient_gender: k })}>
+              <div className="font-semibold">{g.label}</div>
+              <div className="text-xs text-muted">{g.desc}</div>
+            </button>
+          ))}
+        </div>
+        <p className="hint">Assim o seu acompanhante usa as palavras certas ao falar com você.</p>
       </div>
       <div>
         <label className="label" htmlFor="about">Algo que você queira que o seu acompanhante saiba sobre você <span className="font-normal text-muted">(opcional)</span></label>
