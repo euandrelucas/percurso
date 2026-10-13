@@ -32,12 +32,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const speed = agent.pace === "calmo" ? 0.95 : agent.pace === "dinamico" ? 1.05 : 1.0;
   // Quem desabafa pausa para pensar/respirar: 700 ms de silêncio cortava a pessoa. Padrão 1300 ms (ajustável por REALTIME_SILENCE_MS);
   // REALTIME_VAD=semantic usa detecção por sentido (eagerness REALTIME_EAGERNESS: low|medium|high|auto).
+  // Limiar mais alto = menos ruído de fundo/eco virando "fala" (e depois transcrição inventada). REALTIME_VAD_THRESHOLD (0.3–0.9).
+  const vadThreshold = Math.min(0.9, Math.max(0.3, Number(process.env.REALTIME_VAD_THRESHOLD) || 0.65));
+  const noise = ["near_field", "far_field"].includes(process.env.REALTIME_NOISE ?? "") ? process.env.REALTIME_NOISE : "near_field";
   const silenceMs = Math.min(3000, Math.max(500, Number(process.env.REALTIME_SILENCE_MS) || 1300));
   const eagerness = ["low", "medium", "high", "auto"].includes(process.env.REALTIME_EAGERNESS ?? "") ? process.env.REALTIME_EAGERNESS : "low";
   const vad =
     process.env.REALTIME_VAD === "semantic"
       ? { type: "semantic_vad", eagerness, create_response: true, interrupt_response: true }
-      : { type: "server_vad", threshold: 0.55, prefix_padding_ms: 300, silence_duration_ms: silenceMs, create_response: true, interrupt_response: true };
+      : { type: "server_vad", threshold: vadThreshold, prefix_padding_ms: 300, silence_duration_ms: silenceMs, create_response: true, interrupt_response: true };
 
   const sessionFor = (voice: string) => ({
       type: "realtime",
@@ -45,7 +48,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       instructions,
       output_modalities: ["audio"],
       audio: {
-        input: { transcription: { model: "gpt-4o-transcribe", language: "pt" }, noise_reduction: { type: "near_field" }, turn_detection: vad },
+        input: {
+          // O "prompt" ancora a transcrição no contexto (pt-BR, conversa de apoio emocional) e reduz textos inventados em trechos de ruído/silêncio.
+          transcription: { model: "gpt-4o-transcribe", language: "pt", prompt: "Conversa em português do Brasil entre uma pessoa e um acompanhante de apoio emocional. Fala natural, com pausas. Transcreva só o que for dito; se não houver fala clara, não escreva nada." },
+          noise_reduction: { type: noise },
+          turn_detection: vad,
+        },
         output: { voice, speed },
       },
       tools: REALTIME_TOOLS,
